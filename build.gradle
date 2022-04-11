@@ -1,0 +1,49 @@
+plugins {
+    id 'ru.vyarus.use-python' version '2.3.0'
+}
+
+python.installVirtualenv = false
+python.envPath = '/Users/fcarter/.local/share/virtualenvs/vantiqPython-vtOE-RkS'
+
+task pytest(type: PythonTask) {
+    module = 'pytest'
+}
+
+task test() {
+}
+
+tasks.withType(PythonTask) {
+    if (rootProject.hasProperty("TestAccessToken")) {
+        environment 'VANTIQ_ACCESS_TOKEN', rootProject.findProperty("TestAccessToken") ?: "empty"
+    }
+    if (rootProject.hasProperty("TestVantiqServer")) {
+        environment 'VANTIQ_URL', rootProject.findProperty('TestVantiqServer')
+    }
+    if (rootProject.hasProperty('TestVantiqUsername')) {
+        environment 'VANTIQ_USERNAME', rootProject.findProperty('TestVantiqUsername') ?: 'empty'
+    }
+    if (rootProject.hasProperty('TestVantiqPassword')) {
+        environment 'VANTIQ_PASSWORD', rootProject.findProperty('TestVantiqPassword') ?: 'empty'
+    }
+}
+
+task copyTestResources() {
+    doLast {
+        copy {
+            from 'src/test/resources/'
+            include 'logger.ini'
+            into "."
+        }
+    }
+}
+
+task clean(type: Delete) {
+    doLast {
+        delete './build'
+    }
+}
+
+test.dependsOn pytest
+pytest.dependsOn copyTestResources
+
+
