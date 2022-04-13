@@ -90,10 +90,15 @@ task copyTestResources() {
 }
 
 task clean(type: Delete) {
-    doLast {
-        delete './build'
-    }
+    delete files("${project.projectDir}/build")
+    delete files("${project.projectDir}/dist")
 }
+
+task assemble() {}
+
+task build() {}
+
+build.dependsOn assemble, test
 
 test.dependsOn pytest
 pytest.dependsOn copyTestResources
