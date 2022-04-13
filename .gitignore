@@ -45,3 +45,10 @@ captures/
 *.jks
 
 *.DS_Store
+
+# Python infrastructure
+**/__pycache__
+**/*.egg-info/*
+**/Pipfile
+**/Pipfile.lock
+dist/
