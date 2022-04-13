@@ -144,9 +144,6 @@ Event.ack()"""}
         await client.delete(TEST_TYPE, {})
         vr = await client.subscribe(VantiqResources.TOPICS, TEST_TOPIC, None, self.subscriber_callback, {})
         assert isinstance(vr, VantiqResponse)
-        if not vr.is_success:
-            for err in vr.errors:
-                print('Subscription Error:', err)
         self.dump_errors('Subscription Error', vr)
         assert vr.is_success
         orig_count = self.callback_count
@@ -167,9 +164,7 @@ Event.ack()"""}
 
         vr = await client.subscribe(VantiqResources.TYPES, TEST_TYPE, 'insert', self.subscriber_callback, {})
         assert isinstance(vr, VantiqResponse)
-        if not vr.is_success:
-            for err in vr.errors:
-                print('Subscription Error:', err)
+
         self.dump_errors('Subscription Error', vr)
         assert vr.is_success
         orig_count = self.callback_count
@@ -234,9 +229,7 @@ Event.ack()"""}
         assert last['body']['path'] == '/topics' + TEST_RELIABLE_TOPIC + '/publish'
 
         assert isinstance(last, dict)
-        vr = await client.ack(request_id, subscription_id, last['body'])
-        self.dump_errors('Ack call', vr)
-        assert vr.is_success
+        await client.ack(request_id, subscription_id, last['body'])
 
         print('request_id: {0}, sub_id: {1}, partition_id: {2}, seq_id: {3}'.format(request_id, subscription_id,
                                                                                     last['body']['partitionId'],
