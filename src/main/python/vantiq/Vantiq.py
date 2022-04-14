@@ -9,7 +9,7 @@ The SDK consists of the following
     Vantiq -- this is a class handling the client's interaction with the Vantiq system
     VantiqError -- structured errors returned from Vantiq
     VantiqException -- Exception raised from Vantiq when necessary
-    VantiqResponse -- Structured resposne from Vantiq operations
+    VantiqResponse -- Structured response from Vantiq operations
     VantiqResources -- Names for Vantiq resources that may be used in for Vantiq operations
 
 The Vantiq SDK is built atop the asyncio-based aiohttp. Consequently, operations marked as async must be awaited.
@@ -28,7 +28,7 @@ __all__ = ['Vantiq',
            ]
 
 import asyncio
-from typing import Callable, Awaitable
+from typing import Awaitable, Callable, List, Union, Dict
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -100,12 +100,12 @@ class _RestClient:
                                   'Unexpected exception performing {0} against server {1},',
                                   [method, self._url]) from e
 
-    async def download(self, url: str, headers: dict | None) -> ClientResponse:
+    async def download(self, url: str, headers: Union[dict, None]) -> ClientResponse:
         return await self._con.get(url, headers=headers)
 
-    async def upload(self, url: str, headers: dict | None, content_type: str, filename: str | None = None,
-                     doc_name: str | None = None,
-                     inmem: str | bytes | bytearray = None) -> ClientResponse:
+    async def upload(self, url: str, headers: Union[dict, None], content_type: str, filename: Union[str, None] = None,
+                     doc_name: Union[str, None] = None,
+                     inmem: Union[str, bytes, bytearray, None] = None) -> ClientResponse:
 
         # Note:  Without the quote_fields parameter, this FormData object will url-encode all the fields.
         # This plays havoc with the file names we're using as document names.
@@ -160,8 +160,15 @@ class VantiqResources:
     VIDEOS = 'system.videos'
 
     @staticmethod
-    def unqualified_name(qualified_name: str) -> str:
-        return qualified_name.removeprefix(_SYSTEM_PREFIX) if qualified_name is not None else None
+    def unqualified_name(qualified_name: str) -> Union[str, None]:
+        if qualified_name is not None:
+            if qualified_name.startswith(_SYSTEM_PREFIX):
+                return qualified_name[len(_SYSTEM_PREFIX):]
+            else:
+                return qualified_name
+        else:
+            return qualified_name
+        # return qualified_name.removeprefix(_SYSTEM_PREFIX) if qualified_name is not None else None
 
 
 class VantiqError:
@@ -215,12 +222,12 @@ class VantiqResponse:
         body (list or dict) The results of the operation.
     """
 
-    def __init__(self, successful: bool, status_code: int, content_type: str | None):
+    def __init__(self, successful: bool, status_code: int, content_type: Union[str, None]):
         self.status_code = status_code
         self.content_type = content_type
         self.is_success = successful
         self.body = None
-        self.count: int | None = None
+        self.count: Union[int, None] = None
         self.errors = None
 
     @classmethod
@@ -318,7 +325,7 @@ class Vantiq:
 
     """
 
-    def __init__(self, server: str, api_version: str | None = None):
+    def __init__(self, server: str, api_version: Union[str, None] = None):
         """Create a Vantiq client object.
 
         Parameters:
@@ -354,7 +361,10 @@ class Vantiq:
             print('No logger.ini file found.')
         self._vlog: Logger = logging.getLogger(self.__class__.__name__)
 
-        self._server = server.removesuffix('/')
+        if server.endswith('/'):
+            self._server = server[:-len('/')]  # server.removesuffix('/')'
+        else:
+            self._server = server
         self._api_version = api_version if api_version is not None else '1'
         self._is_authenticated = False
         self._username = None
@@ -365,7 +375,7 @@ class Vantiq:
         self._is_connected = False
         self._connection = _RestClient(self._server)
         self._base_path = '/api/v' + self._api_version + '/'
-        self._subscriber: _VantiqSubscriber | None = None
+        self._subscriber: Union[_VantiqSubscriber, None] = None
 
     async def __aenter__(self):
         await self.connect()
@@ -503,9 +513,9 @@ class Vantiq:
             await self._connection.close()
             self._connection = None
 
-    def _build_path(self, qualified_name: str, resource_id: str | None, ext: str | None = None) -> str:
+    def _build_path(self, qualified_name: str, resource_id: Union[str, None], ext: Union[str, None] = None) -> str:
         if qualified_name.startswith('system.'):
-            path = self._base_path + 'resources/' + qualified_name.removeprefix(_SYSTEM_PREFIX)
+            path = self._base_path + 'resources/' + qualified_name[len('system.'):]  # removeprefix(_SYSTEM_PREFIX)
         else:
             path = self._base_path + 'resources/custom/' + qualified_name
 
@@ -517,7 +527,7 @@ class Vantiq:
         return path
 
     @staticmethod
-    def _check_error(response: dict | list[dict] | None):
+    def _check_error(response: Union[dict, List[dict], None]):
         if response is not None:
             code = None
             message = None
@@ -537,8 +547,8 @@ class Vantiq:
             raise VantiqException(code, message, params)
 
     async def _perform_operation(self, operation: str, method: str, path: str,
-                                 query_params: dict | None, is_streaming: bool,
-                                 instance: dict | None = None) -> VantiqResponse:
+                                 query_params: Union[dict, None], is_streaming: bool,
+                                 instance: Union[dict, None] = None) -> VantiqResponse:
         if self._is_authenticated:
             try:
                 body = None
@@ -569,11 +579,11 @@ class Vantiq:
                                   [operation])
 
     async def select(self, resource: str,
-                     properties: list | None = None,
-                     where: dict | None = None,
-                     sort_spec: dict | None = None,
-                     limit: int | None = None,
-                     options: dict | None = None) -> VantiqResponse:
+                     properties: Union[list, None] = None,
+                     where: Union[dict, None] = None,
+                     sort_spec: Union[dict, None] = None,
+                     limit: Union[int, None] = None,
+                     options: Union[dict, None] = None) -> VantiqResponse:
         """(Async) Return items from a Vantiq resource.
 
         Select specific items from a Vantiq resource. Selection and details of the return are controlled
@@ -586,7 +596,7 @@ class Vantiq:
             properties : list(str)
                 (optional) The list of properties for the resource to be returned. If missing, return all properties.
             where : dict(str: *)
-                (optional) The "where clause" to be used to restrict the selection.  The contents is defined
+                (optional) The "where clause" to be used to restrict the selection.  The contents are defined
                 in the API Reference Guide.
             sort_spec : dict(str: int)
                 (optional) Defines the sort order of the returned values.  The key value defines the property on which
@@ -670,14 +680,14 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   [operation]) from e
 
-    async def delete(self, resource: str, where: dict | None) -> VantiqResponse:
+    async def delete(self, resource: str, where: Union[dict, None]) -> VantiqResponse:
         """(Async) Delete item(s) from a Vantiq resource.
 
         Parameters:
             resource : str
                 The name of the Vantiq resource from which to delete items
             where : dict (str: *)
-                The "where clause" to be used to determine which items to delete. The contents is defined
+                The "where clause" to be used to determine which items to delete. The contents are defined
                 in the API Reference Guide.
                 Note that if where is None, this may delete all objects in the resource type.
         Returns:
@@ -797,7 +807,7 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   [operation]) from e
 
-    async def update(self, resource: str, resource_id : str, instance: dict) -> VantiqResponse:
+    async def update(self, resource: str, resource_id: str, instance: dict) -> VantiqResponse:
         """(Async) Update an item in a  Vantiq Resource.
 
             Parameters:
@@ -872,9 +882,9 @@ class Vantiq:
                                   [path]) from cpe
 
     async def upload(self, resource: str, content_type: str, filename: str,
-                     doc_name: str | None = None,
-                     inmem: str | bytes | bytearray = None) -> VantiqResponse:
-        """(Async) Upload a file (or in-memory data), creating a object to hold that data.
+                     doc_name: Union[str, None] = None,
+                     inmem: Union[str, bytes, bytearray, None] = None) -> VantiqResponse:
+        """(Async) Upload a file (or in-memory data), creating an object to hold that data.
 
         This allows the upload of a file to create a document, inage, video, or tensorflow model.
 
@@ -951,7 +961,7 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   ['upload']) from e
 
-    async def count(self, resource: str, where: dict | None) -> VantiqResponse:
+    async def count(self, resource: str, where: Union[dict, None]) -> VantiqResponse:
         """(Async) Return the number of items in a Vantiq resource that satisfy the where clause
 
         Parameters:
@@ -1047,7 +1057,7 @@ class Vantiq:
 
         Parameters:
             src_or_topic : str
-                The resource to which to publish.  Must be either VqntiqResources.SOURCES or VantiqResources.TOPICS.
+                The resource to which to publish.  Must be either VantiqResources.SOURCES or VantiqResources.TOPICS.
             resource_id : str
                 The specific source or topic to which to publish.
             msg : dict
@@ -1147,7 +1157,7 @@ class Vantiq:
         else:
             return None
 
-    async def subscribe(self, resource: str, resource_id: str, operation: str | None,
+    async def subscribe(self, resource: str, resource_id: str, operation: Union[str, None],
                         callback: Callable[[str, dict], Awaitable[None]], params: dict) -> VantiqResponse:
         """(Async) Subscribe to an event from the Vantiq server.
 
@@ -1189,9 +1199,9 @@ class Vantiq:
         """
 
         if VantiqResources.TOPICS == resource:
-            path = "/" + resource.removeprefix(_SYSTEM_PREFIX) + resource_id
+            path = "/" + resource[len(_SYSTEM_PREFIX):] + resource_id  # .removeprefix(_SYSTEM_PREFIX) + resource_id
         else:
-            path = "/" + resource.removeprefix(_SYSTEM_PREFIX) + "/" + resource_id
+            path = "/" + resource[len(_SYSTEM_PREFIX):] + '/' + resource_id  # .removeprefix(_SYSTEM_PREFIX) ...
         if resource in [VantiqResources.SOURCES, VantiqResources.TOPICS]:
             if operation is not None:
                 raise VantiqException('io.vantiq.python.operationillegal',
@@ -1256,15 +1266,15 @@ class _VantiqSubscriber:
         self.connection: ClientConnection = None
         self.url = None
         self._vlog = logging.getLogger(self.__class__.__name__)
-        self.subscriptions: dict[str, bool] = {}
-        self.callbacks: dict[str, Callable[[str, dict], Awaitable[None]]] = {}
+        self.subscriptions: Dict[str, bool] = {}
+        self.callbacks: Dict[str, Callable[[str, dict], Awaitable[None]]] = {}
         self.is_authenticated = False
 
     async def connect(self, do_pings: bool = True):
         if self.parent is None or not self.parent.is_authenticated():
             ve = VantiqException('io.vantiq.python.subscriber.notauthenticated',
-                                  'Attempt to connect subscriber when parent was not authenticated.',
-                                  [])
+                                 'Attempt to connect subscriber when parent was not authenticated.',
+                                 [])
             self.connected_future.set_exception(ve)
             raise ve
 
@@ -1320,9 +1330,9 @@ class _VantiqSubscriber:
                                 self._vlog.error('Connect call failed: %s :: %s:%s', resp['status'],
                                                  resp['body'][0]['code'], resp['body'][0]['message'])
                                 ve = VantiqException('io.vantiq.python.connect.failed',
-                                                      'Connect call failed: {0} :: {1}:{2}',
-                                                      [resp['status'], resp['body'][0]['code'],
-                                                       resp['body'][0]['message']])
+                                                     'Connect call failed: {0} :: {1}:{2}',
+                                                     [resp['status'], resp['body'][0]['code'],
+                                                      resp['body'][0]['message']])
                                 self.connected_future.set_exception(ve)
                                 raise ve
                             else:

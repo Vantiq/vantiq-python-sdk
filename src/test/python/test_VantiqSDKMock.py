@@ -3,6 +3,7 @@ import json
 
 import pytest
 from yarl import URL
+from typing import Union
 
 from vantiq.Vantiq import Vantiq, VantiqException, VantiqResources, VantiqResponse
 import traceback
@@ -54,7 +55,7 @@ class TestMockedConnection:
             assert self._doc_is_from == doc_url
         self._acquired_doc.extend(chunk)
 
-    async def check_download(self, mocked, client: Vantiq, content_url: str, expected_content: bytes | bytearray):
+    async def check_download(self, mocked, client: Vantiq, content_url: str, expected_content: Union[bytes, bytearray]):
         # Check download direct
 
         mocked.get(content_url, status=200, body=expected_content)
@@ -65,14 +66,14 @@ class TestMockedConnection:
         assert contents is not None
         assert contents == expected_content
 
-    def check_callback_type_insert(self, what:str, msg: dict):
+    def check_callback_type_insert(self, what: str, msg: dict):
         assert what in ['connect', 'message']
         if what == 'message':
             assert msg['status'] < 400
             assert msg['body']['path'].startswith('/types/TestType/insert')
             assert msg['body']['value']['id'] == 'test_insert'
 
-    def check_callback_topic_publish(self, what:str, msg: dict):
+    def check_callback_topic_publish(self, what: str, msg: dict):
         assert what in ['connect', 'message']
         if what == 'message':
             assert msg['status'] < 400
@@ -175,7 +176,7 @@ class TestMockedConnection:
         file_content = 'abcdefgh' * 1000
         doc = {'name': 'test_doc', 'fileType': 'text/plain', 'content': file_content}
         doc_resp = {'name': 'test_doc', 'contentSize': len(file_content), 'fileType': 'text/plain',
-                   'content': '/docs/test_doc'}
+                    'content': '/docs/test_doc'}
         all_docs.append(doc_resp)
 
         mocked.post('/api/v1/resources/documents', status=200, payload=doc_resp)
@@ -213,7 +214,7 @@ class TestMockedConnection:
                     payload=doc_resp)
 
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain',
-                                  filename=file_name, inmem=file_content)
+                                 filename=file_name, inmem=file_content)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
@@ -233,9 +234,9 @@ class TestMockedConnection:
         # Now, check the same thing with a file located at a root location
         # This is of interest since Vantiq doesn't permit document names that start
         # with '/'.  This also checks to ensure that path names work as document names
-        # (as they should, but the mechanism used can url-encode when not expected.
+        # (as they should), but the mechanism used can url-encode when not expected.
         filename = '/tmp/test_file'
-        filename_sans_leading_slash = filename.removeprefix('/')
+        filename_sans_leading_slash = filename[len('/'):]  # .removeprefix('/')
         file_content = 'ZYXWVUTSRQPONMLKJIHGFEDCBA' * 250
         async with aiofiles.open(filename, mode='wb') as f:
             await f.write(bytes(file_content, 'utf-8'))
@@ -247,7 +248,7 @@ class TestMockedConnection:
                     payload=doc_resp)
 
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain', filename=filename,
-                                  doc_name=filename_sans_leading_slash)
+                                 doc_name=filename_sans_leading_slash)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         doc = vr.body
@@ -318,7 +319,7 @@ class TestMockedConnection:
         return ret_val
 
     async def check_crud_operations(self, mocked, client: Vantiq, skip_pretest_cleanup: bool = False):
-        mocked.get('/api/v1/resources/types', status=200, headers={'contentType':'application/json'},
+        mocked.get('/api/v1/resources/types', status=200, headers={'contentType': 'application/json'},
                    body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
                                     {'name': 'Ars_K8sCluster', 'resourceName': 'system.k8sclusters',
                                      'ars_namespace': 'system'}]))
@@ -335,7 +336,7 @@ class TestMockedConnection:
                 if row['resourceName'] == VantiqResources.K8S_CLUSTERS:
                     found_clusters = True
         assert found_clusters
-        mocked.get('/api/v1/resources/types/ArsNamespace', status=200, headers={'contentType':'application/json'},
+        mocked.get('/api/v1/resources/types/ArsNamespace', status=200, headers={'contentType': 'application/json'},
                    body=json.dumps({'name': 'Ars_Namespace', 'resourceName': 'namespaces', 'ars_namespace': 'system'}))
 
         vr = await client.select_one(VantiqResources.TYPES, 'ArsNamespace')
@@ -346,7 +347,7 @@ class TestMockedConnection:
         assert 'resourceName' in row
         assert 'ars_namespace' in row
         assert 'name' in row
-        assert row['resourceName'] == VantiqResources.NAMESPACES.removeprefix('system.')
+        assert row['resourceName'] == VantiqResources.unqualified_name(VantiqResources.NAMESPACES)
 
         try:
             query_part =\
@@ -355,11 +356,11 @@ class TestMockedConnection:
                                      sort_part='{"name": -1}', limit_part=1,
                                      option_part={"required": "true"})
             mocked.get(url=f'/api/v1/resources/types?{query_part}', status=200,
-                       headers={'contentType':'application/json'},
-                       body=json.dumps([{'name':'ArsType', 'resourceName':'types'}]))
+                       headers={'contentType': 'application/json'},
+                       body=json.dumps([{'name': 'ArsType', 'resourceName': 'types'}]))
             vr = await client.select(VantiqResources.TYPES, ["name", "resourceName"],
-                                       {"$or": [{"name": "ArsType"}, {'name': 'ArsTensorFlowModel'}]},
-                                       {"name": -1}, 1, {'required': 'true'})
+                                     {"$or": [{"name": "ArsType"}, {'name': 'ArsTensorFlowModel'}]},
+                                     {"name": -1}, 1, {'required': 'true'})
             assert isinstance(vr, VantiqResponse)
             assert vr.is_success
             # Here, we'd get two rows, but we're sorting them in reverse & limiting the results to 1.
@@ -369,7 +370,7 @@ class TestMockedConnection:
             assert rows is not None
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
-            assert rows[0]['resourceName'] == VantiqResources.TYPES.removeprefix('system.')
+            assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
 
             mocked.get('/api/v1/resources/types', status=200, headers={'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
@@ -394,8 +395,7 @@ class TestMockedConnection:
             assert vr.count is not None
             assert vr.count == len(rows)
 
-            query_part = self.mock_query_part(where_part=
-                                              '{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
+            query_part = self.mock_query_part(where_part='{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
             mocked.get(f'/api/v1/resources/types?count=true&{query_part}', status=200,
                        headers={'X-Total-Count': '1', 'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'}]))
@@ -414,7 +414,7 @@ class TestMockedConnection:
         test_cluster_name = 'pythonTestCluster'
         mocked.post('/api/v1/resources/k8sclusters', status=200, headers={'contentType': 'application/json'},
                     body=json.dumps({'_id': 1234, 'name': test_cluster_name,
-                          'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
+                                     'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
         vr = await client.insert(VantiqResources.K8S_CLUSTERS, {'name': test_cluster_name})
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -431,7 +431,7 @@ class TestMockedConnection:
         mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    headers={'contentType': 'application/json'},
                    body=json.dumps({'_id': '1234', 'name': test_cluster_name,
-                          'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
+                                    'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -442,7 +442,7 @@ class TestMockedConnection:
         new_node_name = 'some-new-node'
         row['ingressDefaultNode'] = new_node_name
         mocked.post(f'/api/v1/resources/k8sclusters?upsert=true', status=200,
-                   body=json.dumps({'ingressDefaultNode': f'{new_node_name}'.lower()}))
+                    body=json.dumps({'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
         vr = await client.upsert(VantiqResources.K8S_CLUSTERS, row)
         assert isinstance(vr, VantiqResponse)
@@ -484,13 +484,13 @@ class TestMockedConnection:
         url = f'/api/v1/resources/k8sclusters?count=true&{query_part}'
         mocked.delete(url, status=404)
         # Run delete of something not there -- want to ensure that we're passing the values as required
-        vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name':'ratherUnlikelyName'})
+        vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name': 'ratherUnlikelyName'})
         assert isinstance(vr, VantiqResponse)
         assert not vr.is_success
 
         mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    body=json.dumps({'_id': '1234', 'name': test_cluster_name,
-                          'ingressDefaultNode': f'{new_node_name}'.lower()}))
+                                    'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
         # Now, fetch the updated row
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
@@ -548,7 +548,7 @@ class TestMockedConnection:
 
         mocked.get(f'/api/v1/resources/junkola', status=404,
                    body=json.dumps([{'code': 'io.vantiq.type.system.resource.unknown',
-                                     'message': 'The resource junkola is not recognized as a Vantiq system resource.  ' \
+                                     'message': 'The resource junkola is not recognized as a Vantiq system resource.  '
                                                 'Either correct resource name or adjust access URI/prefix.',
                                      'params': ['junkola']}]))
 
@@ -628,7 +628,7 @@ class TestMockedConnection:
         url = f'/api/v1/resources/custom/{TEST_TYPE}?{query_part}'
 
         # Now, verify that we can get the count when desired
-        mocked.get(url, status=200, headers={'X-Total-Count': '1', 'contentType':'application/json'},
+        mocked.get(url, status=200, headers={'X-Total-Count': '1', 'contentType': 'application/json'},
                    body=json.dumps([message]))
         vr = client.select(TEST_TYPE, None, {'id': id_val}, None, 100)
         vr = await vr
@@ -671,9 +671,9 @@ class TestMockedConnection:
         ret_val = proc_args.copy()
         ret_val['namespace'] = 'bogusTestNamespace'
         mocked.post(f'/api/v1/resources/procedures/{TEST_PROCEDURE}',
-                   status=200,
-                   headers={'contentType': 'application/json'},
-                   body=json.dumps(ret_val))
+                    status=200,
+                    headers={'contentType': 'application/json'},
+                    body=json.dumps(ret_val))
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
         self.dump_errors('Execute error', vr)
@@ -705,7 +705,7 @@ class TestMockedConnection:
             if pref_name == _username:
                 user_rec = urec
         if user_rec is None:
-            # If there's gonna be an error, dump some diagnostics
+            # If there's going to be an error, dump some diagnostics
             print('Users: ', body)
         assert user_rec is not None
 
@@ -761,7 +761,7 @@ class TestMockedConnection:
             v.set_username(_username)
 
             assert v.is_authenticated()
-            assert v.get_id_token() is None # In this case, we haven't really talked to the server yet, so no id token.
+            assert v.get_id_token() is None  # In this case, we haven't really talked to the server yet, so no id token.
             assert v.get_access_token() is not None
             assert v.get_username() is not None
             assert v.get_username() == _username
@@ -922,5 +922,3 @@ class TestMockedConnection:
             await client.authenticate(_username, _password)
             await self.check_nsusers_ops(mocked, client)
         await client.close()
-
-

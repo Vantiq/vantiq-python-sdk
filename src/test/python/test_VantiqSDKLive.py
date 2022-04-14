@@ -5,10 +5,11 @@ import os
 import traceback
 import aiofiles
 from datetime import datetime
-_server_url: str | None = None
-_access_token: str | None = None
-_username: str | None = None
-_password: str | None= None
+from typing import Union
+_server_url: Union[str, None] = None
+_access_token: Union[str, None] = None
+_username: Union[str, None] = None
+_password: Union[str, None] = None
 
 
 @pytest.fixture(autouse=True)
@@ -58,6 +59,9 @@ return {{
                              }
             vr = await client.insert(VantiqResources.TYPES, test_type_def)
             assert vr.is_success
+            vr = await client.delete(test_type_def['name'], None)
+            assert vr.is_success
+
             rule = {'ruleText':
 f"""RULE onTestPublish
 
@@ -69,7 +73,7 @@ INSERT INTO {TEST_TYPE}(event.newValue)
 Event.ack()"""}
             vr = await client.insert(VantiqResources.RULES, rule)
             assert vr.is_success
-        except Exception as e:
+        except Exception:
             print('Unable to setup environment:', traceback.format_exc())
 
     @pytest.fixture(autouse=True)
@@ -82,7 +86,7 @@ Event.ack()"""}
         self.callback_count = 0
         self.callbacks = []
         self.message_checker = None
-        self.last_message: dict | None = None
+        self.last_message: Union[dict, None] = None
 
     def dump_errors(self, tag: str, vr: VantiqResponse):
         if not vr.is_success:
@@ -101,7 +105,7 @@ Event.ack()"""}
             assert self._doc_is_from == doc_url
         self._acquired_doc.extend(chunk)
 
-    async def check_download(self, client: Vantiq, content_url: str, expected_content: bytes | bytearray):
+    async def check_download(self, client: Vantiq, content_url: str, expected_content: Union[bytes, bytearray]):
         # Check download direct
         vr = await client.download(content_url)
         assert isinstance(vr, VantiqResponse)
@@ -110,14 +114,14 @@ Event.ack()"""}
         assert contents is not None
         assert contents == expected_content
 
-    def check_callback_type_insert(self, what:str, msg: dict):
+    def check_callback_type_insert(self, what: str, msg: dict):
         assert what in ['connect', 'message']
         if what == 'message':
             assert msg['status'] < 400
             assert msg['body']['path'].startswith('/types/TestType/insert')
             assert msg['body']['value']['id'] == 'test_insert'
 
-    def check_callback_topic_publish(self, what:str, msg: dict):
+    def check_callback_topic_publish(self, what: str, msg: dict):
         assert what in ['connect', 'message']
         if what == 'message':
             assert msg['status'] < 400
@@ -204,10 +208,14 @@ Event.ack()"""}
 
         print('Callback message:', last)
         assert 'headers' in last
+        # noinspection PyUnresolvedReferences
         assert 'X-Request-Id' in last['headers']
         assert 'body' in last
+        # noinspection PyUnresolvedReferences
         assert 'name' in last['body']
+        # noinspection PyUnresolvedReferences
         subscription_id = last['body']['name']  #
+        # noinspection PyUnresolvedReferences
         request_id = last['headers']['X-Request-Id']  # Looks like a topic path
         assert isinstance(subscription_id, str)
         assert isinstance(request_id, str)
@@ -225,7 +233,9 @@ Event.ack()"""}
 
         last = self.last_message
         assert 'body' in last
+        # noinspection PyUnresolvedReferences
         assert last['headers']['X-Request-Id'] == '/topics' + TEST_RELIABLE_TOPIC
+        # noinspection PyUnresolvedReferences
         assert last['body']['path'] == '/topics' + TEST_RELIABLE_TOPIC + '/publish'
 
         assert isinstance(last, dict)
@@ -281,7 +291,7 @@ Event.ack()"""}
         # Check for creation as well as content existence & fetchability
         file_content = '1234567890' * 2000
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain',
-                                  filename='test_doc_upload', inmem=file_content)
+                                 filename='test_doc_upload', inmem=file_content)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
@@ -300,15 +310,15 @@ Event.ack()"""}
         # Now, check the same thing with a file located at a root location
         # This is of interest since Vantiq doesn't permit document names that start
         # with '/'.  This also checks to ensure that path names work as document names
-        # (as they should, but the mechanism used can url-encode when not expected.
+        # (as they should), but the mechanism used can url-encode when not expected.
         filename = '/tmp/test_file'
-        filename_sans_leading_slash = filename.removeprefix('/')
+        filename_sans_leading_slash = filename[len('/'):]  # filename.removeprefix('/')
         file_content = 'ZYXWVUTSRQPONMLKJIHGFEDCBA' * 250
         async with aiofiles.open(filename, mode='wb') as f:
             await f.write(bytes(file_content, 'utf-8'))
 
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain', filename=filename,
-                                  doc_name=filename_sans_leading_slash)
+                                 doc_name=filename_sans_leading_slash)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         doc = vr.body
@@ -362,12 +372,12 @@ Event.ack()"""}
         assert 'resourceName' in row
         assert 'ars_namespace' in row
         assert 'name' in row
-        assert row['resourceName'] == VantiqResources.NAMESPACES.removeprefix('system.')
+        assert row['resourceName'] == VantiqResources.unqualified_name(VantiqResources.NAMESPACES)
 
         try:
             vr = await client.select(VantiqResources.TYPES, ["name", "resourceName"],
-                                       {"$or": [{"name": "ArsType"}, {'name': 'ArsTensorFlowModel'}]},
-                                       {"name": -1}, 1, {'required': 'true'})
+                                     {"$or": [{"name": "ArsType"}, {'name': 'ArsTensorFlowModel'}]},
+                                     {"name": -1}, 1, {'required': 'true'})
             assert isinstance(vr, VantiqResponse)
             assert vr.is_success
             # Here, we'd get two rows, but we're sorting them in reverse & limiting the results to 1.
@@ -377,7 +387,7 @@ Event.ack()"""}
             assert rows is not None
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
-            assert rows[0]['resourceName'] == VantiqResources.TYPES.removeprefix('system.')
+            assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
 
             vr = await client.select(VantiqResources.TYPES)
             assert isinstance(vr, VantiqResponse)
@@ -473,7 +483,7 @@ Event.ack()"""}
         assert 'name' not in res
         assert '_id' not in res
 
-        # Run a delete of something not there -- want to ensure that we're passing the values as required
+        # Run a delete operation of something not there -- want to ensure that we're passing the values as required
         vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name': 'ratherUnlikelyName'})
         assert isinstance(vr, VantiqResponse)
         assert not vr.is_success
@@ -552,7 +562,7 @@ Event.ack()"""}
         dt = now.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         assert isinstance(dt, str)
-        embedded = {'a':1, 'b':2}
+        embedded = {'a': 1, 'b': 2}
         id_val = 'id_' + str(datetime.now())
         message = {'id': id_val, 'ts': dt,
                    'x': 3.14159, 'k': 8675309, 'o': embedded}
@@ -644,7 +654,7 @@ Event.ack()"""}
             if pref_name == _username:
                 user_rec = urec
         if user_rec is None:
-            # If there's gonna be an error, dump some diagnostics
+            # If there's going to be an error, dump some diagnostics
             print('Users: ', body)
         assert user_rec is not None
 
@@ -695,7 +705,7 @@ Event.ack()"""}
         v.set_username(_username)
 
         assert v.is_authenticated()
-        assert v.get_id_token() is None # In this case, we haven't really talked to the server yet, so no id token.
+        assert v.get_id_token() is None  # In this case, we haven't really talked to the server yet, so no id token.
         assert v.get_access_token() is not None
         assert v.get_username() is not None
         assert v.get_username() == _username
@@ -793,7 +803,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(0)
+    @pytest.mark.timeout(20)
     async def test_subscriptions_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -801,7 +811,7 @@ Event.ack()"""}
             await self.check_subscription_ops(client, False)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(0)
+    @pytest.mark.timeout(20)
     async def test_subscriptions_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
@@ -827,7 +837,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(0)
+    @pytest.mark.timeout(20)
     async def test_namespace_users_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -835,7 +845,7 @@ Event.ack()"""}
             await self.check_nsusers_ops(client)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(0)
+    @pytest.mark.timeout(20)
     async def test_namespace_users_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
