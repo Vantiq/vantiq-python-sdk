@@ -49,6 +49,7 @@ captures/
 # Python infrastructure
 **/__pycache__
 **/*.egg-info/*
-**/Pipfile
-**/Pipfile.lock
-dist/
+./dist
+
+# Test specific artifacts
+Vantiq.log
