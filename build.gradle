@@ -12,7 +12,7 @@ python {
     environment = [:]
 
     // minimal required python version (m.m.m)
-    minPythonVersion = '3.10'
+    minPythonVersion = '3.8'
     // minimal required pip version (m.m.m)
     minPipVersion = '9'
 
@@ -43,18 +43,18 @@ python {
     envCopy = false
 
     pip 'pip:22.0.4'
+
+    // Used in product itself
+    pip 'websockets:10.2'
+    pip 'aiohttp:3.8.1'
+
+    // Used for testing
     pip 'pytest:6.2.5'
     pip 'pytest-asyncio:0.18.3'
     pip 'pytest-pythonpath:0.7.4'
     pip 'pytest-timeout:2.1.0'
-    pip 'websockets:10.2'
-    pip 'jprops:2.0.2'
-    pip 'asyncio:3.4.3'
     pip 'aiofiles:0.8.0'
-    pip 'aiohttp:3.8.1'
     pip 'aioresponses:0.7.3'
-    pip 'aiosignal:1.2.0'
-    pip 'yarl:1.7.2'
 }
 
 task pytest(type: PythonTask) {
@@ -90,15 +90,9 @@ task copyTestResources() {
 }
 
 task clean(type: Delete) {
-    delete files("${project.projectDir}/build")
-    delete files("${project.projectDir}/dist")
+    delete "${project.projectDir}/build"
+    delete "${project.projectDir}/dist"
 }
-
-task assemble() {}
-
-task build() {}
-
-build.dependsOn assemble, test
 
 test.dependsOn pytest
 pytest.dependsOn copyTestResources
