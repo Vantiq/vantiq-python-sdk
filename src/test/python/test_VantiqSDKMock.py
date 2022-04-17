@@ -5,7 +5,7 @@ import pytest
 from yarl import URL
 from typing import Union
 
-from vantiq.Vantiq import Vantiq, VantiqException, VantiqResources, VantiqResponse
+from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
 import traceback
 from aioresponses import aioresponses, CallbackResult
 import aiofiles

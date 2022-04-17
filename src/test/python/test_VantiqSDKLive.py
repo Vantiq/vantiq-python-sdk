@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from vantiq.Vantiq import Vantiq, VantiqException, VantiqResources, VantiqResponse
+from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
 import os
 import traceback
 import aiofiles

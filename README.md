@@ -35,7 +35,8 @@ Vantiq public cloud, contact [support@vantiq.com](mailto:support@vantiq.com).
 The first step is to create an instance of the Vantiq SDK providing the URL of the Vantiq server to connect:
 
 ```python
-from vantiq import Vantiq, VantiqResources, VantiqResponse
+from vantiq import VantiqResources, VantiqResponse
+import vantiqsdk
 
 server: str = "https://dev.vantiq.com"
 
