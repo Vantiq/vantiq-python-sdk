@@ -12,7 +12,7 @@ Vantiq system using the
 The SDK is via the PyPI manager.  To install this into your system,
 use
 ```commandline
-    pip install vantiq-sdk
+    pip install vantiqsdk
 ```
 
 (Note: depending on your local environment, you may need to use `pip3`
@@ -35,7 +35,7 @@ Vantiq public cloud, contact [support@vantiq.com](mailto:support@vantiq.com).
 The first step is to create an instance of the Vantiq SDK providing the URL of the Vantiq server to connect:
 
 ```python
-from vantiq import VantiqResources, VantiqResponse
+from vantiqsdk import Vantiq, VantiqResources, VantiqResponse
 import vantiqsdk
 
 server: str = "https://dev.vantiq.com"
@@ -50,7 +50,7 @@ At this point, the *Vantiq* instance has not yet connected to the server.
 To establish a connection to the server, use the `authenticate` method, e.g.,
 
 ```python
-username = "joe@user";
+username = "joe@user"
 password = "my-secr3t-passw0rd!#!"
 
 await vantiq.authenticate(username, password)
@@ -126,4 +126,4 @@ VANTIQ_PASSWORD <Password for that Vantiq user>
 
 ## Copyright and License
 
-Copyright &copy; 2022 Vantiq, Inc.  Code released under the [MIT license](./LICENSE).
+Copyright &copy; 2022 Vantiq, Inc.  Code released under the [MIT license](./LICENSE.txt).
