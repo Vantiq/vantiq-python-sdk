@@ -124,7 +124,6 @@ for more details about working with async operations.
 
 ### Vantiq Object
 
-
 Create a Vantiq client object.
 
 #### Parameters
@@ -166,7 +165,10 @@ None
 `VantiqException`
 
 #### Notes
-Should precede the [Vantiq.authenticate()](#authenticate) call.  Must be done before other operations.
+Should precede the [Vantiq.authenticate()](#authenticate) call. 
+If this is not done before the [Vantiq.authenticate()](#authenticate) or
+[Vantiq.set_access_token()](#set_acess_token) call,
+it will be done automatically.
 
 ### Vantiq.get\_server()
 
@@ -177,7 +179,7 @@ Returns the server url used for this connection.
 #### Returns
 Returns the API version used for this connection.
 
-### Vantiq.set\_access\_token() (async)
+### <a name="set_access_token" id="set_access_token"></a>Vantiq.set\_access\_token() (async)
 Set the access token for server access.
 
 Access to the Vantiq server is controlled.  Access can be granted by using an access token (recommended) or a username and password.
@@ -344,7 +346,7 @@ Upsert an item into Vantiq Resource.
 
 ### Vantiq.update() (async) 
 
-Update an item in a  Vantiq Resource.
+Update an item in a Vantiq Resource.
 
 #### Parameters
 
@@ -395,7 +397,9 @@ This allows the upload of a file to create a document, inage, video, or tensorfl
 * content_type : str -- The type of data contained in the file.  This will be set as the `contentType` of the resulting object.
 * filename : str -- The name of the file to upload.
 * doc_name : str -- (optional) The name of the object to create. If this is missing, use the filename.
-* inmem : str | bytes | bytearray -- (optional) Content to be uploaded.  Used with the content is not in a file.
+* inmem : str | bytes | bytearray -- (optional) Content to be uploaded.  Used when the content is contained in memory.
+When this value is present (and not None), `filename` or `doc_name` can be used to name the resulting
+Vantiq Document. Providing both `filename` and `doc_name` in this case is an error.
 
 #### Returns
 `VantiqResponse`
@@ -434,7 +438,7 @@ Send a query message to a Vantiq source
 #### Parameters
 
 * source_id : str --  Name of the source to which to send the query
-* query : dict -- The message describing the query to be sent.  These messages are source specific.
+* query : dict | List[dict] -- The message describing the query to be sent.  These messages are source specific.
 
 #### Returns
 

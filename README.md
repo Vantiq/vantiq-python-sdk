@@ -9,7 +9,7 @@ Vantiq system using the
 
 ## Installation
 
-The SDK is via the PyPI manager.  To install this into your system,
+The SDK is installed from the PyPI repo.  To install this into your system,
 use
 ```commandline
     pip install vantiqsdk
@@ -19,7 +19,7 @@ use
 instead of `pip`, or whatever is appropriate to install into your
 virtual environment
 
-The Vantiq SDK for Python requires Python version 3.10 or better.
+The Vantiq SDK for Python requires Python version 3.8 or better.
 It is built using `asyncio`, `aiohttp`, and `websockets`. In the documentation
 that follows, methods marked as _Async_ must be awaited. For more information
 about `asyncio` and `await`, please see the 
@@ -101,8 +101,16 @@ Example projects can be found under the [examples directory](./examples).
 The project is set up as a `gradle` project.  To run the tests, use
 
 ```commandline
-gradle test
+./gradlew test
 ```
+
+or
+
+```commandline
+./gradlew.bat test
+```
+
+in a windows environment.
 
 The tests run will run a mocked version. To execute tests against a _live_ server,
 define the following gradle properties:

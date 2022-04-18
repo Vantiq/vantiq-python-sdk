@@ -899,7 +899,7 @@ class Vantiq:
             doc_name : str
                 (optional) The name of the object to create. If this is missing, use the filename.
             inmem : str | bytes | bytearray
-                (optional) Content to be uploaded.  Used with the content is not in a file.
+                (optional) Content to be uploaded.  Used when the content is not in a file.
 
         Returns:
             VantiqResponse containing the object created.
