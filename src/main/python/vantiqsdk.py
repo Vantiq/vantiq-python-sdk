@@ -977,7 +977,9 @@ class Vantiq:
 
         operation = 'count'
         try:
-            query_params = {'count': 'true'}
+            # Here, specify that we want the count but don't really care about the data.  So we'll limit
+            # the return to a single row & limit the properties returned
+            query_params = {'count': 'true', 'limit': 1}
             if where is not None:
                 query_params['where'] = json.dumps(where)
             props = ['_id']  # Since we don't care about the data, return the least we can

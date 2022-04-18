@@ -269,7 +269,7 @@ class TestMockedConnection:
             assert len(docs) == 3
 
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        url = f'/api/v1/resources/documents?count=true&{qp}'
+        url = f'/api/v1/resources/documents?count=true&limit=1&{qp}'
         mocked.get(url, status=200, headers={'X-Total-Count': '3'})
         vr = await client.count(VantiqResources.DOCUMENTS, None)
         assert vr.count is not None
@@ -384,7 +384,7 @@ class TestMockedConnection:
             assert isinstance(rows, list)
             assert len(rows) > 0
             qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-            mocked.get(f'/api/v1/resources/types?count=true&{qp}', status=200,
+            mocked.get(f'/api/v1/resources/types?count=true&limit=1&{qp}', status=200,
                        headers={'X-Total-Count': '2', 'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
                                         {'name': 'Ars_K8sCluster', 'resourceName': 'system.k8sclusters',
@@ -396,7 +396,7 @@ class TestMockedConnection:
             assert vr.count == len(rows)
 
             query_part = self.mock_query_part(where_part='{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
-            mocked.get(f'/api/v1/resources/types?count=true&{query_part}', status=200,
+            mocked.get(f'/api/v1/resources/types?count=true&limit=1&{query_part}', status=200,
                        headers={'X-Total-Count': '1', 'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'}]))
 
@@ -566,7 +566,7 @@ class TestMockedConnection:
 
     async def check_other_operations(self, mocked, client: Vantiq):
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&{qp}', status=200, headers={'X-Total-Count': '0'})
+        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200, headers={'X-Total-Count': '0'})
 
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
@@ -601,7 +601,7 @@ class TestMockedConnection:
         await asyncio.sleep(0.500)  # let event hit...
 
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&{qp}', status=200, headers={'X-Total-Count': '1'})
+        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200, headers={'X-Total-Count': '1'})
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
         self.dump_errors('Count error', vr)
