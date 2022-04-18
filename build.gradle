@@ -2,6 +2,8 @@ plugins {
     id 'ru.vyarus.use-python' version '2.3.0'
 }
 
+apply plugin: 'base'
+
 python {
     // python binary name (python or python3 by default)
     pythonBinary
@@ -53,15 +55,16 @@ python {
     pip 'pytest-asyncio:0.18.3'
     pip 'pytest-pythonpath:0.7.4'
     pip 'pytest-timeout:2.1.0'
+    pip 'pytest-html:3.1.1'   // To generate html reports from pytest cases
     pip 'aiofiles:0.8.0'
     pip 'aioresponses:0.7.3'
+
+    // Used for building the distribution
+    pip 'build:0.7.0'
 }
 
 task pytest(type: PythonTask) {
     module = 'pytest'
-}
-
-task test() {
 }
 
 tasks.withType(PythonTask) {
@@ -79,6 +82,12 @@ tasks.withType(PythonTask) {
     }
 }
 
+task build_distribution(type: PythonTask) {
+    module = 'build'
+}
+
+task test() {}
+
 task copyTestResources() {
     doLast {
         copy {
@@ -89,12 +98,15 @@ task copyTestResources() {
     }
 }
 
-task clean(type: Delete) {
+task pyclean(type: Delete) {
     delete "${project.projectDir}/build"
     delete "${project.projectDir}/dist"
 }
 
-test.dependsOn pytest
+clean.dependsOn pyclean
+assemble.finalizedBy build_distribution
+build.finalizedBy test
+test.finalizedBy pytest
 pytest.dependsOn copyTestResources
 
 
