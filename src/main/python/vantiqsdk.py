@@ -1054,31 +1054,34 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   [operation]) from e
 
-    async def publish(self, src_or_topic: str, resource_id: str, msg: dict) -> VantiqResponse:
-        """(Async) Publish a message to a Vantiq Source or Topic.
+    async def publish(self, resource: str, resource_id: str, msg: dict) -> VantiqResponse:
+        """(Async) Publish a message to a Vantiq Service (event), Source, or Topic.
 
         Parameters:
-            src_or_topic : str
-                The resource to which to publish.  Must be either VantiqResources.SOURCES or VantiqResources.TOPICS.
+            resource : str
+                The resource to which to publish.  Must be either VantiqResources.SERVICES, VantiqResources.SOURCES,
+                or VantiqResources.TOPICS.
             resource_id : str
-                The specific source or topic to which to publish.
+                The specific service, source, or topic to which to publish. If the resource is VantiqResources.SERVICES,
+                the resource_id will take the form 'service_name/event_name.  This event should be defined as one of
+                the inbound events for the service in question.
             msg : dict
-                The message to publish to the source or topic
+                The message to publish
         Returns:
             VantiqResponse
 
         """
 
         operation = 'publish'
-        if src_or_topic not in [VantiqResources.SOURCES, VantiqResources.TOPICS]:
+        if resource not in [VantiqResources.SOURCES, VantiqResources.TOPICS, VantiqResources.SERVICES]:
             err = VantiqError('io.vantiq.python.publish.invalidresource',
                               'The publish operation can be performed only on the following resources: {0}',
-                              [[VantiqResources.SOURCES, VantiqResources.TOPICS]])
+                              [[VantiqResources.SERVICES, VantiqResources.SOURCES, VantiqResources.TOPICS]])
             return VantiqResponse.from_error(err)
         try:
             query_params = {}
             method = 'POST'
-            path = self._build_path(src_or_topic, resource_id)
+            path = self._build_path(resource, resource_id)
             resp = await self._perform_operation(operation, method, path, query_params, False, msg)
             return resp
         except VantiqException:

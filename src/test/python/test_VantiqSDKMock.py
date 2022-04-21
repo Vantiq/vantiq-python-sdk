@@ -20,6 +20,7 @@ _password: str = 'trulySecret'
 TEST_TOPIC = '/test/pythonsdk/topic'
 TEST_PROCEDURE = 'pythonsdk.echo'
 TEST_TYPE = 'TestType'
+SERVICE_EVENT = 'testService/testEvent'
 
 STANDARD_COUNT_PROPS = '["_id"]'
 
@@ -98,6 +99,9 @@ class TestMockedConnection:
             await self.subscriber_callback('message', {'status': 200,
                                                        'body': {'path': '/types/TestType/insert',
                                                                 'value': {'id': 'test_insert'}}})
+        elif SERVICE_EVENT in url.path:
+            # We currently ignore these...
+            pass
         else:
             pytest.xfail('Unexpected path entry in callback generator')
         return CallbackResult(status=200)
@@ -164,6 +168,12 @@ class TestMockedConnection:
         while self.callback_count < orig_count + 2:
             await asyncio.sleep(0.1)
         assert self.callbacks == ['connect', 'message']
+
+        mocked.post(f'/api/v1/resources/services/{SERVICE_EVENT}', status=200,
+                    callback=self.callback)
+        vr = await client.publish(VantiqResources.SERVICES, SERVICE_EVENT, {'testValue': 'event value'})
+        assert isinstance(vr, VantiqResponse)
+        assert vr.is_success
 
     async def check_documentesque_operation(self, mocked, client: Vantiq, skip_pretest_cleanup: bool = False) -> None:
         # First, clean the environment
