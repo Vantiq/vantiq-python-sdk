@@ -1,16 +1,21 @@
-import asyncio
-import json
+__author__ = 'fhcarter'
+__copyright__ = "Copyright 2022, Vantiq, Inc."
+__license__ = "MIT License"
+__email__ = "support@vantiq.com"
 
+import asyncio
+from datetime import datetime
+import json
+import traceback
+from typing import Union
+import urllib.parse
+
+import aiofiles
+from aioresponses import aioresponses, CallbackResult
 import pytest
 from yarl import URL
-from typing import Union
 
 from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
-import traceback
-from aioresponses import aioresponses, CallbackResult
-import aiofiles
-from datetime import datetime
-import urllib.parse
 
 _server_url: str = 'http://example.com/'
 _access_token: str = '1234accessToken'

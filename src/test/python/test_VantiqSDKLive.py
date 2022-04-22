@@ -1,11 +1,19 @@
+__author__ = 'fhcarter'
+__copyright__ = "Copyright 2022, Vantiq, Inc."
+__license__ = "MIT License"
+__email__ = "support@vantiq.com"
+
 import asyncio
-import pytest
-from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
+from datetime import datetime
 import os
 import traceback
-import aiofiles
-from datetime import datetime
 from typing import Union
+
+import aiofiles
+import pytest
+
+from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
+
 _server_url: Union[str, None] = None
 _access_token: Union[str, None] = None
 _username: Union[str, None] = None

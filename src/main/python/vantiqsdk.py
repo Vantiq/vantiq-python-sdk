@@ -28,17 +28,15 @@ __all__ = ['Vantiq',
            ]
 
 import asyncio
-from typing import Awaitable, Callable, List, Union, Dict
-
-import aiohttp
-from aiohttp import ClientResponse
-import json
 import base64
-import websockets
-from websockets import ClientConnection
+import json
 import logging
 from logging import Logger, config
 from os.path import exists
+from typing import Awaitable, Callable, List, Union, Dict
+
+import aiohttp
+import websockets
 
 _MIMETYPE_JSON = 'application/json'
 _MIMETYPE_TEXT_PREFIX = 'text/'
@@ -54,7 +52,6 @@ class _RestClient:
 
     async def __aenter__(self):
         self._con = self.connect()
-        # self._session = aiohttp.ClientSession(connector=self._con)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -74,7 +71,7 @@ class _RestClient:
         headers: dict = None,
         body: json = None,
         data: any = None
-    ) -> (bool, ClientResponse):
+    ) -> (bool, aiohttp.ClientResponse):
         assert isinstance(method, str)
         assert isinstance(url, str)
 
@@ -99,12 +96,12 @@ class _RestClient:
                                   'Unexpected exception performing {0} against server {1},',
                                   [method, self._url]) from e
 
-    async def download(self, url: str, headers: Union[dict, None]) -> ClientResponse:
+    async def download(self, url: str, headers: Union[dict, None]) -> aiohttp.ClientResponse:
         return await self._con.get(url, headers=headers)
 
     async def upload(self, url: str, headers: Union[dict, None], content_type: str, filename: Union[str, None] = None,
                      doc_name: Union[str, None] = None,
-                     inmem: Union[str, bytes, bytearray, None] = None) -> ClientResponse:
+                     inmem: Union[str, bytes, bytearray, None] = None) -> aiohttp.ClientResponse:
 
         # Note:  Without the quote_fields parameter, this FormData object will url-encode all the fields.
         # This plays havoc with the file names we're using as document names.
@@ -235,13 +232,13 @@ class VantiqResponse:
         vr.errors = [err]
         return vr
 
-    def _populate_count(self, resp: ClientResponse) -> None:
+    def _populate_count(self, resp: aiohttp.ClientResponse) -> None:
         hdrs = resp.headers
         cnt = hdrs.get('X-Total-Count')
         if cnt is not None:
             self.count = int(cnt)
 
-    async def _populate_body(self, resp: ClientResponse) -> None:
+    async def _populate_body(self, resp: aiohttp.ClientResponse) -> None:
         if self.content_type == _MIMETYPE_JSON:
             self.body = await resp.json()
         elif self.content_type is not None and self.content_type.startswith(_MIMETYPE_TEXT_PREFIX):
@@ -251,11 +248,12 @@ class VantiqResponse:
             self.body = await resp.read()
         return
 
-    def _populate_streaming_body(self, resp: ClientResponse) -> None:
+    def _populate_streaming_body(self, resp: aiohttp.ClientResponse) -> None:
         self.body = resp.content
         return
 
-    async def _populate_errors(self, resp: ClientResponse) -> None:
+    async def _populate_errors(self, resp: aiohttp.ClientResponse) -> None:
+        # noinspection PyBroadException
         try:
             if self.content_type == _MIMETYPE_JSON:
                 errors = await resp.json()
@@ -292,9 +290,11 @@ class VantiqResponse:
                 ve = VantiqError(code, message, params)
                 self.errors = [ve]
         except Exception:
+            # noinspection PyBroadException
             try:
                 unparseable = await resp.text()
             except Exception:
+                # noinspection PyBroadException
                 try:
                     unparseable = await resp.read()
                 except Exception:
@@ -466,9 +466,11 @@ class Vantiq:
         resp = await self._connection.request('GET', '/authenticate', headers=headers)
         ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
         if not resp.ok:
+            # noinspection PyProtectedMember
             await ret_val._populate_errors(resp)
             self._vlog.error('Authentication to server %s failed: %s', self._server, resp)
             raise VantiqException(resp.errors[0].code, resp.errors[0].message, resp.errors[0].params)
+        # noinspection PyProtectedMember
         await ret_val._populate_body(resp)
         self._access_token = ret_val.body['accessToken']
         self._username = username
@@ -485,8 +487,10 @@ class Vantiq:
             ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
             if not resp.ok:
                 self._vlog.error('Authentication/refresh to server %s failed: %s', self._server, resp)
+                # noinspection PyProtectedMember
                 await ret_val._populate_errors(resp)
                 raise VantiqException(resp.errors[0].code, resp.errors[0].message, resp.errors[0].params)
+            # noinspection PyProtectedMember
             await ret_val._populate_body(resp)
             self._access_token = ret_val.body['accessToken']
             self._id_token = ret_val.body['idToken']
@@ -555,16 +559,20 @@ class Vantiq:
                 if instance is not None:
                     body = json.dumps(instance)
                     headers[aiohttp.hdrs.CONTENT_TYPE] = 'application/json'
-                resp: ClientResponse = await self._connection.request(method, path, headers=headers,
-                                                                      query_param=query_params, body=body)
+                resp: aiohttp.ClientResponse = await self._connection.request(method, path, headers=headers,
+                                                                              query_param=query_params, body=body)
                 ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
                 if resp.ok:
+                    # noinspection PyProtectedMember
                     ret_val._populate_count(resp)
                     if is_streaming:
+                        # noinspection PyProtectedMember
                         ret_val._populate_streaming_body(resp)
                     else:
+                        # noinspection PyProtectedMember
                         await ret_val._populate_body(resp)
                 else:
+                    # noinspection PyProtectedMember
                     await ret_val._populate_errors(resp)
                 return ret_val
             except Exception as e:
@@ -872,7 +880,9 @@ class Vantiq:
         try:
             resp = await self._connection.download(url, headers)
             ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
+            # noinspection PyProtectedMember
             ret_val._populate_count(resp)
+            # noinspection PyProtectedMember
             ret_val._populate_streaming_body(resp)
             return ret_val
         except aiohttp.ClientPayloadError as cpe:
@@ -948,7 +958,9 @@ class Vantiq:
         try:
             resp = await self._connection.upload(path, headers, content_type, filename, doc_name, inmem)
             ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
+            # noinspection PyProtectedMember
             ret_val._populate_count(resp)
+            # noinspection PyProtectedMember
             await ret_val._populate_body(resp)
             return ret_val
 
@@ -1267,7 +1279,7 @@ class _VantiqSubscriber:
         self.parent = parent
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
-        self.connection: ClientConnection = None
+        self.connection: websockets.ClientConnection = None
         self.url = None
         self._vlog = logging.getLogger(self.__class__.__name__)
         self.subscriptions: Dict[str, bool] = {}
