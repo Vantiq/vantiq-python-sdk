@@ -64,7 +64,6 @@ class _RestClient:
         self._con = aiohttp.ClientSession(base_url=self._url)
 
     async def close(self):
-        # await self._session.close()
         await self._con.close()
 
     async def request(
