@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.org/Vantiq/vantiq-sdk-java.svg?branch=master)](https://travis-ci.org/Vantiq/vantiq-sdk-java)
 
 # Vantiq SDK for Python
 
@@ -15,9 +14,9 @@ use
     pip install vantiqsdk
 ```
 
-(Note: depending on your local environment, you may need to use `pip3`
+Note: depending on your local environment, you may need to use `pip3`
 instead of `pip`, or whatever is appropriate to install into your
-virtual environment
+virtual environment.
 
 The Vantiq SDK for Python requires Python version 3.8 or better.
 It is built using `asyncio`, `aiohttp`, and `websockets`. In the documentation

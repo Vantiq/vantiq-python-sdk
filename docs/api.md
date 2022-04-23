@@ -4,11 +4,11 @@ This package contains the Vantiq  SDK for the Python language.
 
 The SDK consists of the following classes
 
-* Vantiq -- this is a class handling the client's interaction with the Vantiq system
-* VantiqError -- structured errors returned from Vantiq
-* VantiqException -- Exception raised from Vantiq when necessary
-* VantiqResponse -- Structured resposne from Vantiq operations
-* VantiqResources -- Names for Vantiq resources that may be used in for Vantiq operations
+* `Vantiq` -- this is a class handling the client's interaction with the Vantiq system
+* `VantiqError` -- structured errors returned from Vantiq
+* `VantiqException` -- Exception raised from Vantiq when necessary
+* `VantiqResponse` -- Structured resposne from Vantiq operations
+* `VantiqResources` -- Names for Vantiq resources that may be used in for Vantiq operations
 
 The Vantiq SDK is built atop the asyncio-based aiohttp. Consequently, operations marked as async must be awaited.
 See [the Python asyncio documentation](https://docs.python.org/3/library/asyncio.html) for more details.
@@ -65,9 +65,9 @@ Contains an error from the Vantiq system.
 
 A VantiqError contains three (3) properties:
 
-* code (str) The short string identifying the error
-* message (sr) The message template for the errors
-* params (list) The parameters for the message template.
+* _code_ : str -- The short string identifying the error
+* _message_ : str -- The message template for the errors
+* _params_ : list -- The parameters for the message template.
 
 Message templates look and behave like strings for which the Python format() can supply values.
 _E.g._,
@@ -84,9 +84,9 @@ Contains an exception from the Vantiq system.
 
 A VantiqException is a RuntimeError and contains three (3) properties:
 
-* code (str) The short string identifying the error
-* message (sr) The message template for the errors
-* params (list) The parameters for the message template.
+* _code_ : str -- The short string identifying the error
+* _message_ : str -- The message template for the errors
+* _params_ : list -- The parameters for the message template.
 
 Message templates look and behave like strings for which the Python format() can supply values.
 
@@ -96,11 +96,11 @@ A response from a Vantiq operation
 
 A Vantiq response contains information returned from a Vantiq operation. This information is represented by the following properties:
 
-* is_success (bool) Did the operation succeed
-* content_type (str) The content type of the message returned.  Usually 'application/json'.
-* count (int) Where applicable, the number of items returned for a successful operation.  This is generally available after a count() or delete() operation.
-* errors (list) A list of VantiqError entries outlining a failed operation
-* body (list or dict or StreamReader) The results of the operation.
+* _is_success_ : bool -- Did the operation succeed
+* _content_type_ : str -- The content type of the message returned.  Usually 'application/json'.
+* _count_ : int -- Where applicable, the number of items returned for a successful operation.  This is generally available after a count() or delete() operation.
+* _errors_ : list -- A list of VantiqError entries outlining a failed operation
+* _body_ : list | dict | StreamReader -- The results of the operation.
 
 
 ## Vantiq
@@ -128,8 +128,8 @@ Create a Vantiq client object.
 
 #### Parameters
 
-* server : str -- URL String at which to find the Vantiq Server
-* api_version : str (optional) -- Version of the API to uwe. Defaults to '1'
+* _server_ : str -- URL String at which to find the Vantiq Server
+* _api_version_ : str (optional) -- Version of the API to uwe. Defaults to '1'
 
 #### Returns
     Vantiq object with which to interact with the Vantiq system.
@@ -186,7 +186,7 @@ Access to the Vantiq server is controlled.  Access can be granted by using an ac
 
 #### Parameters
 
-* access_token : str -- Access token to be used to gain access to the Vantiq system
+* _access_token_ : str -- Access token to be used to gain access to the Vantiq system
 
         
 ### Vantiq.get\_access\_token()
@@ -198,7 +198,7 @@ Set the username to be used to access the Vantiq server
 
 #### Parameters
 
-* username : str -- user name to be used to gain access to the Vantiq system
+* _username_ : str -- user name to be used to gain access to the Vantiq system
 
 ### Vantiq.get\_username()
 #### Returns
@@ -215,8 +215,8 @@ Returns a boolean indicating whether this Vantiq instance is authenticated.
 
 #### Parameters
 
-* username : str -- The username to be used to authenticate to the Vantiq server.
-* password : str -- The password to be used to authenticate to the Vantiq server.
+* _username_ : str -- The username to be used to authenticate to the Vantiq server.
+* _password_ : str -- The password to be used to authenticate to the Vantiq server.
 
 #### Raises
 `VantiqException`
@@ -243,13 +243,13 @@ by the parameters.
 
 #### Parameters
 
-* resource : str -- The name of the resource to be returned.  System resource names are provided via the VantiqResource class.
-* properties : list(str) -- (optional) The list of properties for the resource to be returned. If missing, return all properties.
-* where : dict(str: \*) -- (optional) The "where clause" to be used to restrict the selection.  The contents is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html).
-* sort_spec : dict(str: int) -- (optional) Defines the sort order of the returned values.  The key value defines the property on which to sort, and the value determines the order
+* _resource_ : str -- The name of the resource to be returned.  System resource names are provided via the VantiqResource class.
+* _properties_ : list(str) -- (optional) The list of properties for the resource to be returned. If missing, return all properties.
+* _where_ : dict(str: \*) -- (optional) The "where clause" to be used to restrict the selection.  The contents is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html).
+* _sort_spec_ : dict(str: int) -- (optional) Defines the sort order of the returned values.  The key name defines the property on which to sort, and the value determines the order
 (1 = ascending, -1 = descending).  See the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html) for details.
-* limit : int -- (optional) Limit the number of records returned
-* options : dict (str, \*) -- (optional) Additional query parameter options
+* _limit_ : int -- (optional) Limit the number of records returned
+* _options_ : dict (str, \*) -- (optional) Additional query parameter options
 
 #### Returns
 
@@ -268,8 +268,8 @@ Select a single item from a Vantiq resource
 
 #### Parameters
     
-* resource : str -- The name of the resource from which to select.
-* resource_id : str -- The identifier for the specific item within the resource.
+* _resource_ : str -- The name of the resource from which to select.
+* _resource_id_ : str -- The identifier for the specific item within the resource.
 
 #### Returns
 
@@ -290,8 +290,8 @@ Delete item(s) from a Vantiq resource.
 
 ### Parameters:
 
-* resource : str -- The name of the Vantiq resource from which to delete items
-* where : dict (str: \*) -- The "where clause" to be used to determine which items to delete. The contents is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html). Note that if `where` is None, this will delete all objects in the resource type.
+* _resource_ : str -- The name of the Vantiq resource from which to delete items
+* _where_ : dict (str: \*) -- The "where clause" to be used to determine which items to delete. The contents is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html). Note that if `where` is None, this will delete all objects in the resource type.
 
 #### Returns
 `VantiqResponse`
@@ -310,8 +310,8 @@ Delete a single item from a resource.
 
 #### Parameters
 
-* resource : str -- The name of the Vantiq resource from which to delete.
-* resource_id : str -- The key for the item to delete.
+* _resource_ : str -- The name of the Vantiq resource from which to delete.
+* _resource_id_ : str -- The key for the item to delete.
 
 #### Returns
 
@@ -323,8 +323,8 @@ Insert an item into Vantiq Resource.
 
 #### Parameters
 
-* resource : str -- Name of the Vantiq resource into which to insert.
-* instance : dict -- The values to be inserted.
+* _resource_ : str -- Name of the Vantiq resource into which to insert.
+* _instance_ : dict -- The values to be inserted.
 
 #### Returns
 
@@ -337,8 +337,8 @@ Upsert an item into Vantiq Resource.
 
 #### Parameters
 
-* resource : str --  Name of the Vantiq resource into which to upsert.
-* instance : dict -- The values to be upserted.
+* _resource_ : str --  Name of the Vantiq resource into which to upsert.
+* _instance_ : dict -- The values to be upserted.
 
 #### Returns
 
@@ -350,9 +350,9 @@ Update an item in a Vantiq Resource.
 
 #### Parameters
 
-* resource : str -- Name of the Vantiq resource in which to update.
-* resource_id : str -- The key of the record to look up for replacement.  The _id property can be used.
-* instance : dict -- The values to be updated.
+* _resource_ : str -- Name of the Vantiq resource in which to update.
+* _resource_id_ : str -- The key of the record to look up for replacement.  The _id property can be used.
+* _instance_ : dict -- The values to be updated.
 
 #### Returns
 
@@ -363,7 +363,7 @@ Download content from a Vantiq Document, Image, Video, or TensorflowModel.
 
 #### Parameters
 
-* path : str -- The path from which to obtain the data. This is found in the `content` field of the base object.
+* _path_ : str -- The path from which to obtain the data. This is found in the `content` field of the base object.
 
 #### Returns
 
@@ -393,11 +393,11 @@ This allows the upload of a file to create a document, inage, video, or tensorfl
 
 #### Parameters
    
-* resource : str -- The Vantiq resource type to create.
-* content_type : str -- The type of data contained in the file.  This will be set as the `contentType` of the resulting object.
-* filename : str -- The name of the file to upload.
-* doc_name : str -- (optional) The name of the object to create. If this is missing, use the filename.
-* inmem : str | bytes | bytearray -- (optional) Content to be uploaded.  Used when the content is contained in memory.
+* _resource_ : str -- The Vantiq resource type to create.
+* _content_type_ : str -- The type of data contained in the file.  This will be set as the `contentType` of the resulting object.
+* _filename_ : str -- The name of the file to upload.
+* _doc_name_ : str -- (optional) The name of the object to create. If this is missing, use the filename.
+* _inmem_ : str | bytes | bytearray -- (optional) Content to be uploaded.  Used when the content is contained in memory.
 When this value is present (and not None), `filename` or `doc_name` can be used to name the resulting
 Vantiq Document. Providing both `filename` and `doc_name` in this case is an error.
 
@@ -424,8 +424,8 @@ Return the number of items in a Vantiq resource that satisfy the where clause
 
 #### Parameters:
 
-* resource : str -- The name of the resource to be counted.  System resource names are provided via the VantiqResource class.
-* where : dict(str: \*) -- (optional) The "where clause" to be used to restrict the counting.  The where clause is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html).
+* _resource_ : str -- The name of the resource to be counted.  System resource names are provided via the VantiqResource class.
+* _where_ : dict(str: \*) -- (optional) The "where clause" to be used to restrict the counting.  The where clause is defined in the [API Reference Guide](https://dev.vantiq.com/docs/system/api/index.html).
 
 #### Returns
 
@@ -437,8 +437,8 @@ Send a query message to a Vantiq source
 
 #### Parameters
 
-* source_id : str --  Name of the source to which to send the query
-* query : dict | List[dict] -- The message describing the query to be sent.  These messages are source specific.
+* _source_id_ : str --  Name of the source to which to send the query
+* _query_ : dict | List[dict] -- The message describing the query to be sent.  These messages are source specific.
 
 #### Returns
 
@@ -451,8 +451,8 @@ Execute a Vantiq procedure.
 
 #### Parameters:
 
-* procedure_id : str -- The name of the procedure to execute.
-* params : dict -- The parameters provided for the procedure's execution.  The key names are the parameter names, and the values their values.
+* _procedure_id_ : str -- The name of the procedure to execute.
+* _params_ : dict -- The parameters provided for the procedure's execution.  The key names are the parameter names, and the values their values.
 
 #### Returns
 `VantiqResponse` where the body contains the results of the procedure execution, if any.
@@ -460,13 +460,13 @@ Execute a Vantiq procedure.
 
 ### Vantiq.publish() (async)
 
-Publish a message to a Vantiq Source or Topic.
+Publish a message to a Vantiq Service, Source, or Topic.
 
 #### Parameters
 
-* src_or_topic : str --  The resource to which to publish.  Must be either VqntiqResources.SOURCES or VantiqResources.TOPICS.
-* resource_id : str -- The specific source or topic to which to publish.
-* msg : dict -- The message to publish to the source or topic
+* _resource_ : str --  The resource to which to publish.  Must be either VantiqResources.SERVICES, VantiqResources.SOURCES, or VantiqResources.TOPICS.
+* _resource_id_ : str -- The specific service, source, or topic to which to publish.
+* _msg_ : dict -- The message to publish
 
 #### Returns
 `VantiqResponse`
@@ -477,7 +477,7 @@ Returns an array containing objects which map between "username" and "preferredU
 
 #### Parameters:
 
-* namespace : str -- The name of the namespace from which to get the list of users.
+* _namespace_ : str -- The name of the namespace from which to get the list of users.
  
 #### Returns:
 
@@ -519,20 +519,20 @@ type and the operation (_i.e._, `insert`, `update`, or `delete`) are required.
 
 #### Parameters
  
-* resource : str -- The resource type for which this subscription is being made
-* resource_id : str -- The identifier of the specific instance of the `resource` in question.
-* operation : str -- The operation to which to subscribe when subscribing to a VantiqResources.TYPES event. Should be `None` for other resource types.
-* callback : Callable[[str, dict], Awaitable[None]] -- A callback function to call when a subscribed event arrives. The callback will be called with the
-type of the callback `connect`, `message`, `error`) and the message contents.
+* _resource_ : str -- The resource type for which this subscription is being made
+* _resource_id_ : str -- The identifier of the specific instance of the `resource` in question.
+* _operation_ : str -- The operation to which to subscribe when subscribing to a VantiqResources.TYPES event. Should be `None` for other resource types.
+* _callback_ : Callable[[str, dict], Awaitable[None]] -- A callback function to call when a subscribed event arrives. The callback will be called with the
+type of the callback (`connect`, `message`, `error`) and the message contents.
 <br><br>
 The callback message contains the following properties:
 
-    * status : int -- the status of the event
-    * contentType : str -- the content type of the message
-    * path : str -- the event specification
-    * value : dict -- the value of the event (type inserted, topic contents, etc.)
+    * _status_ : int -- the status of the event
+    * _contentType_ : str -- the content type of the message
+    * _path_ : str -- the event specification
+    * _value_ : dict -- the value of the event (type inserted, topic contents, etc.)
     
-* params : dict -- Parameters for the subscription
+* _params_ : dict -- Parameters for the subscription
 
 #### Returns
 
@@ -546,9 +546,9 @@ Acknowledge the receipt of a reliable message from reliable resources after crea
 
 #### Parameters 
 
-* request_id : str -- id of the request. This can be found in the 'X-Request_id' header of the callback for the subscription
-* subscription_id : str -- id of the subscription that delivered the message. This is found in the `[body][name]` field of the callback for the subscription message.
-* msg : dict -- message being acknowledged.  This should be the `[body]` field of the message (`value` field) delivered to the subscription callback.
+* _request_id_ : str -- id of the request. This can be found in the 'X-Request_id' header of the callback for the subscription
+* _subscription_id_ : str -- id of the subscription that delivered the message. This is found in the `[body][name]` field of the callback for the subscription message.
+* _msg_ : dict -- message being acknowledged.  This should be the `[body]` field of the message (`value` field) delivered to the subscription callback.
         
 #### Raises:
 
