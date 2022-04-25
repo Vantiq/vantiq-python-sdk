@@ -4,6 +4,15 @@ plugins {
 
 apply plugin: 'base'
 
+ext {
+    if (project.rootProject.hasProperty('pypi_repo')) {
+    pypi_repo = project.rootProject.findProperty('pypi_repo')
+    } else {
+    pypi_repo = 'testpypi'
+    }
+}
+
+
 python {
     // python binary name (python or python3 by default)
     pythonBinary
@@ -61,6 +70,9 @@ python {
 
     // Used for building the distribution
     pip 'build:0.7.0'
+    // For publication
+    pip 'twine:4.0.0'
+
 }
 
 task pytest(type: PythonTask) {
@@ -103,6 +115,12 @@ task pyclean(type: Delete) {
     delete "${project.projectDir}/dist"
 }
 
+task publish(type: PythonTask) {
+    command = "upload --verbose -r ${pypi_repo} dist/*"
+    module = 'twine'
+}
+
+publish.mustRunAfter build_distribution
 clean.dependsOn pyclean
 assemble.finalizedBy build_distribution
 build.finalizedBy test
