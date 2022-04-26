@@ -6,9 +6,9 @@ apply plugin: 'base'
 
 ext {
     if (project.rootProject.hasProperty('pypi_repo')) {
-    pypi_repo = project.rootProject.findProperty('pypi_repo')
+        pypi_repo = project.rootProject.findProperty('pypi_repo')
     } else {
-    pypi_repo = 'testpypi'
+        pypi_repo = 'testpypi'
     }
 }
 
