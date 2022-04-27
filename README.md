@@ -75,7 +75,7 @@ vr: VantiqResponse = await vantiq.select(VantiqResources.TYPES,
 
 Alternatively,
 
-``python
+```python
 to_await = vantiq.select(VantiqResources.TYPES, 
                          None, 
                          None, 
