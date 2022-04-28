@@ -46,11 +46,9 @@ class TestMockedConnection:
         self.server_url = _server_url
         self.base_url = self.server_url + '/api/v1/'
 
-    def dump_errors(self, tag: str, vr: VantiqResponse):
-        if not vr.is_success:
-            for err in vr.errors:
-                print('{0}: {1}'.format(tag, err))
-
+    def dump_result(self, tag: str, vr: VantiqResponse):
+        print(f'{tag} response: ', str(vr))
+        
     def process_chunk(self, doc_url: str, length: int, chunk: bytes) -> None:
         assert length > 0
         assert len(chunk) == length
@@ -69,7 +67,7 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         contents = await vr.body.read()
-        assert contents is not None
+        assert contents
         assert contents == expected_content
 
     def check_callback_type_insert(self, what: str, msg: dict):
@@ -90,7 +88,7 @@ class TestMockedConnection:
         print('Subscriber got a callback -- what: {0}, details: {1}'.format(what, details))
         self.callback_count += 1
         self.callbacks.append(what)
-        if self.message_checker is not None:
+        if self.message_checker:
             self.message_checker(what, details)
 
     async def callback(self, url: URL, **kwargs):
@@ -199,16 +197,16 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert res['name'] == 'test_doc'
         mocked.get('/api/v1/resources/documents/test_doc', status=200, payload=doc_resp)
         vr = await client.select_one(VantiqResources.DOCUMENTS, 'test_doc')
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Insert doc', vr)
+        self.dump_result('Insert doc', vr)
         assert vr.is_success
         doc = vr.body
-        assert doc is not None
+        assert doc
         assert isinstance(doc, dict)
         assert doc['name'] == 'test_doc'
         assert doc['fileType'] == 'text/plain'
@@ -233,7 +231,7 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         print('Document uploaded: ', res)
         mocked.get('/api/v1/resources/documents/test_doc_upload', status=200, payload=doc_resp)
@@ -287,7 +285,7 @@ class TestMockedConnection:
         url = f'/api/v1/resources/documents?count=true&limit=1&{qp}'
         mocked.get(url, status=200, headers={'X-Total-Count': '3'})
         vr = await client.count(VantiqResources.DOCUMENTS, None)
-        assert vr.count is not None
+        assert vr.count
         assert vr.count == len(docs)
 
         mocked.get('/api/v1/resources/documents/' + filename_sans_leading_slash, status=200, payload=doc_resp)
@@ -303,31 +301,31 @@ class TestMockedConnection:
 
     def mock_query_part(self, props_part: str = None, where_part: str = None, sort_part: str = None,
                         limit_part: int = None, option_part: dict = None) -> str:
-        encoded_props = urllib.parse.quote(props_part) if props_part is not None else ''
-        encoded_where = urllib.parse.quote(where_part) if where_part is not None else ''
-        encoded_sort = urllib.parse.quote(sort_part) if sort_part is not None else ''
+        encoded_props = urllib.parse.quote(props_part) if props_part else ''
+        encoded_where = urllib.parse.quote(where_part) if where_part else ''
+        encoded_sort = urllib.parse.quote(sort_part) if sort_part else ''
         # TODO -- when aioresponses() fixes double encoding problem..., remove the re-encoding below...
-        encoded_props = urllib.parse.quote(encoded_props) if props_part is not None else ''
-        encoded_where = urllib.parse.quote(encoded_where) if where_part is not None else ''
-        encoded_sort = urllib.parse.quote(encoded_sort) if sort_part is not None else ''
+        encoded_props = urllib.parse.quote(encoded_props) if props_part else ''
+        encoded_where = urllib.parse.quote(encoded_where) if where_part else ''
+        encoded_sort = urllib.parse.quote(encoded_sort) if sort_part else ''
         # TODO -- end double encoding hack.
         ret_val = ''
-        if limit_part is not None:
+        if limit_part:
             ret_val += f'count=true&limit={limit_part}'
-        if props_part is not None:
+        if props_part:
             if ret_val != '':
                 ret_val += '&'
             ret_val += f'props={encoded_props}'
-        if option_part is not None:
+        if option_part :
             for k, v in option_part.items():
                 if ret_val != '':
                     ret_val += '&'
                 ret_val += f'{k}={v}'
-        if sort_part is not None:
+        if sort_part:
             if ret_val != '':
                 ret_val += '&'
             ret_val += f'sort={encoded_sort}'
-        if where_part is not None:
+        if where_part:
             if ret_val != '':
                 ret_val += '&'
             ret_val += f'where={encoded_where}'
@@ -347,7 +345,7 @@ class TestMockedConnection:
         for row in rows:
             assert 'name' in row
             assert 'ars_namespace' in row
-            if 'resourceName' in row:
+            if 'resourceName' in row.keys():
                 if row['resourceName'] == VantiqResources.K8S_CLUSTERS:
                     found_clusters = True
         assert found_clusters
@@ -382,7 +380,7 @@ class TestMockedConnection:
             # Checking that myriad parameters works as expected...
             rows = vr.body
             assert isinstance(rows, list)
-            assert rows is not None
+            assert rows
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
             assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
@@ -395,7 +393,7 @@ class TestMockedConnection:
             assert isinstance(vr, VantiqResponse)
             assert vr.is_success
             rows = vr.body
-            assert rows is not None
+            assert rows
             assert isinstance(rows, list)
             assert len(rows) > 0
             qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
@@ -407,7 +405,7 @@ class TestMockedConnection:
 
             vr = await client.count(VantiqResources.TYPES, None)
             assert vr.is_success
-            assert vr.count is not None
+            assert vr.count
             assert vr.count == len(rows)
 
             query_part = self.mock_query_part(where_part='{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
@@ -417,9 +415,9 @@ class TestMockedConnection:
 
             coroutine = client.count(VantiqResources.TYPES,
                                      {'resourceName': VantiqResources.unqualified_name(VantiqResources.TYPES)})
-            assert coroutine is not None
+            assert coroutine
             vr = await coroutine
-            assert vr is not None
+            assert vr
             assert vr.is_success
             assert vr.count == 1
         except VantiqException as ve:
@@ -434,14 +432,14 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert 'name' in res
         assert 'ingressDefaultNode' in res
         assert '_id' in res
         assert res['name'] == test_cluster_name
         assert res['ingressDefaultNode'] == f'vantiq-{test_cluster_name}-node'.lower()
-        assert res['_id'] is not None
+        assert res['_id']
 
         mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    headers={'contentType': 'application/json'},
@@ -451,7 +449,7 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         row = vr.body
-        assert row is not None
+        assert row
         assert isinstance(row, dict)
 
         new_node_name = 'some-new-node'
@@ -463,13 +461,13 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert 'ingressDefaultNode' in res
         assert res['ingressDefaultNode'] == new_node_name
         # These will be missing since not updated
-        assert 'name' not in res
-        assert '_id' not in res
+        assert 'name' not in res.keys()
+        assert '_id' not in res.keys()
 
         # Fetch to ensure still there & to refresh our record to avoid occ issues
         mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
@@ -489,7 +487,7 @@ class TestMockedConnection:
                    body=json.dumps({'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
         vr = await client.update(VantiqResources.K8S_CLUSTERS, test_cluster_name, row)
-        self.dump_errors('update results: ', vr)
+        self.dump_result('update results: ', vr)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
@@ -512,14 +510,14 @@ class TestMockedConnection:
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         row = vr.body
-        assert row is not None
+        assert row
         assert isinstance(row, dict)
         assert 'name' in row
         assert '_id' in row
         assert 'ingressDefaultNode' in row
         assert row['name'] == test_cluster_name
         assert row['ingressDefaultNode'] == new_node_name
-        assert row['_id'] is not None
+        assert row['_id']
         mocked.delete(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200)
         vr = await client.delete_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
         assert isinstance(vr, VantiqResponse)
@@ -619,7 +617,7 @@ class TestMockedConnection:
         mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200, headers={'X-Total-Count': '1'})
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Count error', vr)
+        self.dump_result('Count error', vr)
         assert vr.is_success
         assert vr.count is not None
         assert vr.count == 1
@@ -665,13 +663,13 @@ class TestMockedConnection:
 
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Execute error', vr)
+        self.dump_result('Execute error', vr)
         assert vr.is_success
         assert vr.content_type == 'application/json'
-        assert vr.body is not None
+        assert vr.body
         assert isinstance(vr.body, dict)
-        assert 'arg1' in vr.body
-        assert 'arg2' in vr.body
+        assert 'arg1' in vr.body.keys()
+        assert 'arg2' in vr.body.keys()
         assert vr.body['arg1'] == proc_args['arg1']
         assert vr.body['arg2'] == proc_args['arg2']
 
@@ -691,13 +689,13 @@ class TestMockedConnection:
                     body=json.dumps(ret_val))
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Execute error', vr)
+        self.dump_result('Execute error', vr)
         assert vr.is_success
         assert vr.content_type == 'application/json'
-        assert vr.body is not None
+        assert vr.body
         assert isinstance(vr.body, dict)
-        assert 'arg1' in vr.body
-        assert 'arg2' in vr.body
+        assert 'arg1' in vr.body.keys()
+        assert 'arg2' in vr.body.keys()
         assert vr.body['arg1'] == proc_args['arg1']
         assert vr.body['arg2'] == proc_args['arg2']
         assert 'namespace' in vr.body
@@ -710,7 +708,7 @@ class TestMockedConnection:
                    body=json.dumps(expected_result))
         vr = await client.get_namespace_users(ns)
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('get_namespace_users error', vr)
+        self.dump_result('get_namespace_users error', vr)
         assert vr.is_success
         body = vr.body
         assert isinstance(body, list)
@@ -722,7 +720,7 @@ class TestMockedConnection:
         if user_rec is None:
             # If there's going to be an error, dump some diagnostics
             print('Users: ', body)
-        assert user_rec is not None
+        assert user_rec
 
     @pytest.mark.timeout(10)
     @pytest.mark.asyncio
@@ -740,9 +738,9 @@ class TestMockedConnection:
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
             await v.authenticate(_username, _password)
             assert v.is_authenticated()
-            assert v.get_id_token() is not None
-            assert v.get_access_token() is not None
-            assert v.get_username() is not None
+            assert v.get_id_token()
+            assert v.get_access_token()
+            assert v.get_username()
             assert v.get_username() == _username
 
             mocked.post('/authenticate/refresh',
@@ -751,9 +749,9 @@ class TestMockedConnection:
                         body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
             await v.refresh()
             assert v.is_authenticated()
-            assert v.get_id_token() is not None
-            assert v.get_access_token() is not None
-            assert v.get_username() is not None
+            assert v.get_id_token()
+            assert v.get_access_token()
+            assert v.get_username()
             assert v.get_username() == _username
 
             await v.close()
@@ -777,8 +775,8 @@ class TestMockedConnection:
 
             assert v.is_authenticated()
             assert v.get_id_token() is None  # In this case, we haven't really talked to the server yet, so no id token.
-            assert v.get_access_token() is not None
-            assert v.get_username() is not None
+            assert v.get_access_token()
+            assert v.get_username()
             assert v.get_username() == _username
 
             mocked.post('/authenticate/refresh',
@@ -787,8 +785,8 @@ class TestMockedConnection:
                         body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
             await v.refresh()
             assert v.is_authenticated()
-            assert v.get_id_token() is not None
-            assert v.get_access_token() is not None
+            assert v.get_id_token()
+            assert v.get_access_token()
             await v.close()
 
             # Check that we've dumped connection information
@@ -802,7 +800,7 @@ class TestMockedConnection:
     async def test_crud_with_ctm(self):
         with aioresponses() as mocked:
             async with Vantiq(_server_url, '1') as client:
-                if _username is not None:
+                if _username:
                     mocked.get('/authenticate',
                                status=200,
                                headers={'contentType': 'application/json'},
@@ -819,7 +817,7 @@ class TestMockedConnection:
     async def test_crud_with_plain_client(self):
         with aioresponses() as mocked:
             client = Vantiq(_server_url)  # Also test defaulting of API version
-            if _access_token is not None:
+            if _access_token:
                 await client.set_access_token(_access_token)
             else:
                 mocked.get('/authenticate',
@@ -840,7 +838,7 @@ class TestMockedConnection:
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
             async with Vantiq(_server_url, '1') as client:
-                if _username is not None:
+                if _username:
                     await client.authenticate(_username, _password)
                 else:
                     await client.set_access_token(_access_token)
@@ -857,7 +855,7 @@ class TestMockedConnection:
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
             client = Vantiq(_server_url)  # Also test defaulting of API version
-            if _access_token is not None:
+            if _access_token:
                 await client.set_access_token(_access_token)
             else:
                 await client.authenticate(_username, _password)

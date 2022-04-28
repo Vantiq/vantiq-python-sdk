@@ -50,6 +50,9 @@ class _RestClient:
         self._url = url
         self._con = None
 
+    def __repr__(self):
+        return f'_RestClient({self._url})'
+
     async def __aenter__(self):
         self._con = self.connect()
         return self
@@ -108,7 +111,7 @@ class _RestClient:
         data = aiohttp.FormData(quote_fields=False)
         if doc_name is None:
             doc_name = filename
-        if inmem is not None:
+        if inmem:
             data.add_field(name=filename, value=inmem, content_type=content_type, filename=doc_name)
         else:
             data.add_field(name=filename, value=open(filename, 'rb'), content_type=content_type, filename=doc_name)
@@ -157,7 +160,7 @@ class VantiqResources:
 
     @staticmethod
     def unqualified_name(qualified_name: str) -> Union[str, None]:
-        if qualified_name is not None:
+        if qualified_name:
             if qualified_name.startswith(_SYSTEM_PREFIX):
                 return qualified_name[len(_SYSTEM_PREFIX):]
             else:
@@ -186,6 +189,9 @@ class VantiqError:
     def __str__(self):
         return 'VantiqError: code: {0}, message: {1}'.format(self.code, self.message)
 
+    def __repr__(self):
+        return f'VantiqError(code={self.code}, message={self.message}, params={self.params})'
+
 
 class VantiqException(RuntimeError):
     """Contains an exception from the Vantiq system.
@@ -203,6 +209,9 @@ class VantiqException(RuntimeError):
         self.message = message
         self.params = params
         super().__init__(message.format(*params))
+
+    def __repr__(self):
+        return f'VantiqException(code={self.code}, message={self.message}, params={self.params})'
 
 
 class VantiqResponse:
@@ -226,6 +235,33 @@ class VantiqResponse:
         self.count: Union[int, None] = None
         self.errors = None
 
+    def __str__(self):
+        ret_val = f'VantiqResponse: successful: {self.is_success}, status_code: {self.status_code}, ' \
+               f'content_type:${self.content_type}, count: {self.count})'
+        if self.is_success:
+            if isinstance(self.body, list):
+                if len(self.body) == 0:
+                    ret_val += '\n\t body: empty'
+                else:
+                    for item in self.body:
+                        ret_val += '\n\t body: ' + str(item)
+            elif isinstance(self.body, aiohttp.StreamReader):
+                ret_val += '\n\t body: <<streaming body>>'
+            elif self.body is not None:
+                ret_val += '\n\t body: ' + str(self.body)
+            else:
+                ret_val += '\n\t body: None'
+        else:
+            if self.errors:
+                for err in self.errors:
+                    ret_val += '\n\t Error: ' + str(err)
+        return ret_val
+
+    def __repr__(self):
+        return f'VantiqResponse(successful={self.is_success}, status_code={self.status_code}, ' \
+               f'content_type=${self.content_type}) # count={self.count}, errors={self.errors}, ' \
+               f'body={self.body}'
+
     @classmethod
     def from_error(cls, err: VantiqError):
         vr = cls(False, 400, None)
@@ -241,7 +277,7 @@ class VantiqResponse:
     async def _populate_body(self, resp: aiohttp.ClientResponse) -> None:
         if self.content_type == _MIMETYPE_JSON:
             self.body = await resp.json()
-        elif self.content_type is not None and self.content_type.startswith(_MIMETYPE_TEXT_PREFIX):
+        elif self.content_type and self.content_type.startswith(_MIMETYPE_TEXT_PREFIX):
             self.body = await resp.text()
         else:
             # If we don't recognize the type, just return all the bytes
@@ -260,18 +296,18 @@ class VantiqResponse:
                 err_list = []
                 if isinstance(errors, list):
                     for err in errors:
-                        if 'code' in err:
+                        if 'code' in err.keys():
                             err_list.append(VantiqError(err['code'], err['message'], err['params']))
-                        elif 'error' in err:
+                        elif 'error' in err.keys():
                             err_list.append(VantiqError(str(resp.status), err['error'], []))
                         else:
                             err_list.append(VantiqError('io.vantiq.python.unknownerrorprops',
                                                         'Received error in an unknown format: {0}',
                                                         [err]))
                 elif isinstance(errors, dict):
-                    if 'code' in errors:
+                    if 'code' in errors.keys():
                         err_list.append(VantiqError(errors['code'], errors['message'], errors['params']))
-                    elif 'error' in errors:
+                    elif 'error' in errors.keys():
                         err_list.append(VantiqError(str(resp.status), errors['error'], []))
                     else:
                         err_list.append(VantiqError('io.vantiq.python.unknownerrorprops',
@@ -364,7 +400,7 @@ class Vantiq:
             self._server = server[:-len('/')]  # server.removesuffix('/')'
         else:
             self._server = server
-        self._api_version = api_version if api_version is not None else '1'
+        self._api_version = api_version if api_version else '1'
         self._is_authenticated = False
         self._username = None
         self._access_token = None
@@ -375,6 +411,14 @@ class Vantiq:
         self._connection = _RestClient(self._server)
         self._base_path = '/api/v' + self._api_version + '/'
         self._subscriber: Union[_VantiqSubscriber, None] = None
+
+    def __str__(self):
+        return f'Vantiq connection to {self._server}, is_connected: {self._is_connected}, ' \
+               f'is_authenticated: {self._is_authenticated}'
+
+    def __repr__(self):
+        return f'Vantiq({self._server}, {self._api_version}) n# is_connected: {self._is_connected}, ' \
+               f'is_authenticated: {self._is_authenticated}'
 
     async def __aenter__(self):
         await self.connect()
@@ -509,10 +553,10 @@ class Vantiq:
         self._base_path = None
         self._auth_header = None
         self._username = None
-        if self._subscriber is not None:
+        if self._subscriber:
             await self._subscriber.close()
             self._subscriber = None
-        if self._connection is not None:
+        if self._connection:
             await self._connection.close()
             self._connection = None
 
@@ -522,28 +566,28 @@ class Vantiq:
         else:
             path = self._base_path + 'resources/custom/' + qualified_name
 
-        if resource_id is not None:
+        if resource_id:
             path += '/' + resource_id
-        if ext is not None:
+        if ext:
             path += '/' + ext
 
         return path
 
     @staticmethod
     def _check_error(response: Union[dict, List[dict], None]):
-        if response is not None:
+        if response:
             code = None
             message = None
             params = None
             if isinstance(response, list):
                 response = response[0]
-            if 'code' in response:
+            if 'code' in response.keys():
                 code = response['code']
-                if 'message' in response:
+                if 'message' in response.keys():
                     message = response['message']
-                if 'params' in response:
+                if 'params' in response.keys():
                     params = response['params']
-            elif 'error' in response:
+            elif 'error' in response.keys():
                 message = response['error']
                 code = 'io.vantiq.python.error'
                 params = []
@@ -556,7 +600,7 @@ class Vantiq:
             try:
                 body = None
                 headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
-                if instance is not None:
+                if instance:
                     body = json.dumps(instance)
                     headers[aiohttp.hdrs.CONTENT_TYPE] = 'application/json'
                 resp: aiohttp.ClientResponse = await self._connection.request(method, path, headers=headers,
@@ -625,16 +669,16 @@ class Vantiq:
         operation = 'select'
         try:
             query_params = {}
-            if properties is not None:
+            if properties:
                 query_params['props'] = json.dumps(properties)
-            if where is not None:
+            if where:
                 query_params['where'] = json.dumps(where)
-            if sort_spec is not None:
+            if sort_spec:
                 query_params['sort'] = json.dumps(sort_spec)
             if limit is not None and limit > 0:
                 query_params['limit'] = limit
                 query_params['count'] = 'true'
-            if options is not None:
+            if options:
                 for key, value in options.items():
                     if isinstance(key, str) and isinstance(value, str):
                         query_params[key] = value
@@ -710,7 +754,7 @@ class Vantiq:
         operation = 'delete'
         try:
             query_params = {'count': 'true'}
-            if where is not None:
+            if where:
                 query_params['where'] = json.dumps(where)
             method = 'DELETE'
             path = self._build_path(resource, None)
@@ -799,7 +843,7 @@ class Vantiq:
                                   'The object to be upserted cannot be None.', [])
         operation = 'upsert'
         try:
-            if '_id' in instance:
+            if '_id' in instance.keys():
                 instance.pop('_id')
             query_params = {'upsert': 'true'}
             method = 'POST'
@@ -834,7 +878,7 @@ class Vantiq:
                                   'The object to be upserted cannot be None.', [])
         operation = 'update'
         try:
-            if '_id' in instance:
+            if '_id' in instance.keys():
                 instance.pop('_id')
             query_params = {}
             method = 'PUT'
@@ -940,7 +984,7 @@ class Vantiq:
             ve = VantiqError('io.vantiq.python.content',
                              'The filename and inmem parameters for an upload() call are both missing.',
                              [])
-        elif filename is not None and doc_name is not None and inmem is not None:
+        elif filename and doc_name and inmem:
             ve = VantiqError('io.vantiq.python.duplicatename',
                              'When uploading in memory object, only one of filename or doc_name is permitted.',
                              [])
@@ -949,7 +993,7 @@ class Vantiq:
                              'Neither a file name nor a document name was provided for an upload() call.',
                              [])
 
-        if ve is not None:
+        if ve:
             return VantiqResponse.from_error(ve)
 
         path = self._build_path(resource, None)
@@ -991,7 +1035,7 @@ class Vantiq:
             # Here, specify that we want the count but don't really care about the data.  So we'll limit
             # the return to a single row & limit the properties returned
             query_params = {'count': 'true', 'limit': 1}
-            if where is not None:
+            if where:
                 query_params['where'] = json.dumps(where)
             props = ['_id']  # Since we don't care about the data, return the least we can
             query_params['props'] = json.dumps(props)
@@ -1149,11 +1193,11 @@ class Vantiq:
             task = asyncio.create_task(self._subscriber.connect())
             failure_reason = None
             try:
-                if self._subscriber.connected_future is not None:
+                if self._subscriber.connected_future:
                     await self._subscriber.connected_future
             except Exception as e:
                 failure_reason = e
-            if failure_reason is not None:
+            if failure_reason is None:
                 failure_reason = self._subscriber.connected_future.exception()
             if failure_reason is None:
                 failure_reason = self._subscriber.connected_future.result()
@@ -1219,7 +1263,7 @@ class Vantiq:
         else:
             path = "/" + resource[len(_SYSTEM_PREFIX):] + '/' + resource_id  # .removeprefix(_SYSTEM_PREFIX) ...
         if resource in [VantiqResources.SOURCES, VantiqResources.TOPICS]:
-            if operation is not None:
+            if operation:
                 raise VantiqException('io.vantiq.python.operationillegal',
                                       "Operation only support for {0}",
                                       [VantiqResources.TYPES])
@@ -1255,11 +1299,11 @@ class Vantiq:
         Raises:
             VantiqException
         """
-        if 'partitionId' not in msg:
+        if 'partitionId' not in msg.keys():
             raise VantiqException('io.vantiq.python.ack.nopartitionid',
                                   'The message being acknowledged contains no partition_id.',
                                   [])
-        elif 'sequenceId' not in msg:
+        elif 'sequenceId' not in msg.keys():
             raise VantiqException('io.vantiq.python.ack.nosequenceid',
                                   'The message being acknowledged contains no sequence_id.',
                                   [])
@@ -1285,6 +1329,16 @@ class _VantiqSubscriber:
         self.subscriptions: Dict[str, bool] = {}
         self.callbacks: Dict[str, Callable[[str, dict], Awaitable[None]]] = {}
         self.is_authenticated = False
+
+    def __str__(self):
+        ret_val =  f'VantiqSubscriber for {str(self.parent)}'
+        if self.subscriptions:
+            for key, value in self.subscriptions.items():
+                ret_val += '\n\t' + key + ': ' + value
+        return ret_val
+
+    def __repr__(self):
+        return f'VantiqSubscriber(repr({self.parent}))'
 
     async def connect(self, do_pings: bool = True):
         if self.parent is None or not self.parent.is_authenticated():
@@ -1312,16 +1366,16 @@ class _VantiqSubscriber:
 
                     resp = json.loads(raw)
                     request_id = None
-                    if 'headers' in resp:
+                    if 'headers' in resp.keys():
                         hdrs = resp['headers']
-                        if 'X-Request-Id' in hdrs:
+                        if 'X-Request-Id' in hdrs.keys():
                             request_id = hdrs['X-Request-Id']
                     else:
                         pass
 
                     # Using request id, track back to request for which this is a response
 
-                    if 'status' in resp:
+                    if 'status' in resp.keys():
                         if resp['status'] == 200:
                             if not self.is_authenticated:
                                 self.connection = websocket
@@ -1330,15 +1384,15 @@ class _VantiqSubscriber:
                                 self.connected_future.set_result('OK')
                                 self._vlog.debug('Authentication completed.')
                             else:
-                                if request_id is not None:
-                                    if request_id in self.subscriptions:
+                                if request_id:
+                                    if request_id in self.subscriptions.keys():
                                         if not self.subscriptions[request_id]:
                                             # Then this is our response for our subscription.
                                             self.subscriptions[request_id] = True
                                             self._vlog.debug('Subscription requested accepted.')
                                             callback = self.callbacks[request_id]
                                             await callback(self.CONNECT, resp)
-                                        elif request_id in self.callbacks:
+                                        elif request_id in self.callbacks.keys():
                                             callback = self.callbacks[request_id]
                                             await callback(self.MESSAGE, resp)
                         elif resp['status'] >= 400:
@@ -1352,11 +1406,11 @@ class _VantiqSubscriber:
                                 self.connected_future.set_exception(ve)
                                 raise ve
                             else:
-                                if request_id is not None and request_id in self.callbacks:
+                                if request_id and request_id in self.callbacks.keys():
                                     callback = self.callbacks[request_id]
                                     await callback(self.ERROR, resp)
                         elif resp['status'] == 100:
-                            if request_id is not None and request_id in self.callbacks:
+                            if request_id and request_id in self.callbacks.keys():
                                 self._vlog.debug('Message received via subscription.')
                                 callback = self.callbacks[request_id]
                                 await callback(self.MESSAGE, resp)
@@ -1365,7 +1419,7 @@ class _VantiqSubscriber:
     async def subscribe(self, path: str, params: dict,
                         callback: Callable[[str, dict], Awaitable[None]]) -> VantiqResponse:
         if self.connected:
-            if path in self.subscriptions:
+            if path in self.subscriptions.keys():
                 vr = VantiqResponse(False, 400, None)
                 ve = VantiqError('io.vantiq.python.subscribed',
                                  'A subscription for path {0} already exists.',

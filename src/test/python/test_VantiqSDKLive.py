@@ -96,12 +96,8 @@ Event.ack()"""}
         self.message_checker = None
         self.last_message: Union[dict, None] = None
 
-    def dump_errors(self, tag: str, vr: VantiqResponse):
-        if not vr.is_success:
-            for err in vr.errors:
-                print('{0}: {1}'.format(tag, err))
-        else:
-            print('{0} is OK'.format(tag))
+    def dump_result(self, tag: str, vr: VantiqResponse):
+        print(f'{tag} response: ', str(vr))
 
     def process_chunk(self, doc_url: str, length: int, chunk: bytes) -> None:
         assert length > 0
@@ -119,7 +115,7 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         contents = await vr.body.read()
-        assert contents is not None
+        assert contents
         assert contents == expected_content
 
     def check_callback_type_insert(self, what: str, msg: dict):
@@ -146,7 +142,7 @@ Event.ack()"""}
         print('Subscriber got a callback -- what: {0}, details: {1}'.format(what, details))
         self.callback_count += 1
         self.callbacks.append(what)
-        if self.message_checker is not None:
+        if self.message_checker:
             self.message_checker(what, details)
 
     async def check_subscription_ops(self, client: Vantiq, prestart_transport: bool):
@@ -156,7 +152,7 @@ Event.ack()"""}
         await client.delete(TEST_TYPE, {})
         vr = await client.subscribe(VantiqResources.TOPICS, TEST_TOPIC, None, self.subscriber_callback, {})
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Subscription Error', vr)
+        self.dump_result('Subscription Error', vr)
         assert vr.is_success
         orig_count = self.callback_count
         await asyncio.sleep(0.5)
@@ -177,7 +173,7 @@ Event.ack()"""}
         vr = await client.subscribe(VantiqResources.TYPES, TEST_TYPE, 'insert', self.subscriber_callback, {})
         assert isinstance(vr, VantiqResponse)
 
-        self.dump_errors('Subscription Error', vr)
+        self.dump_result('Subscription Error', vr)
         assert vr.is_success
         orig_count = self.callback_count
         await asyncio.sleep(0.5)
@@ -200,14 +196,14 @@ Event.ack()"""}
                      "redeliveryTTL": 100}
 
         vr = await client.insert("system.topics", new_topic)
-        self.dump_errors('Upsert to create reliable topic', vr)
+        self.dump_result('Upsert to create reliable topic', vr)
         assert vr.is_success
         params = {'persistent': True}
 
         self.message_checker = self.check_callback_topic_publish_saveit
 
         vr = await client.subscribe(VantiqResources.TOPICS, TEST_RELIABLE_TOPIC, None, self.subscriber_callback, params)
-        self.dump_errors('Subscribe to reliable', vr)
+        self.dump_result('Subscribe to reliable', vr)
         assert vr.is_success
         while self.last_message is None:
             await asyncio.sleep(0.1)
@@ -255,7 +251,7 @@ Event.ack()"""}
 
         where = {"subscriptionId": subscription_id}
         vr = await client.select("ArsEventAcknowledgement", None, where)
-        self.dump_errors('Select of event acks', vr)
+        self.dump_result('Select of event acks', vr)
 
         assert vr.is_success
         body = vr.body
@@ -277,15 +273,15 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert res['name'] == 'test_doc'
         vr = await client.select_one(VantiqResources.DOCUMENTS, 'test_doc')
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('Insert doc', vr)
+        self.dump_result('Insert doc', vr)
         assert vr.is_success
         doc = vr.body
-        assert doc is not None
+        assert doc
         assert isinstance(doc, dict)
         assert doc['name'] == 'test_doc'
         assert doc['fileType'] == 'text/plain'
@@ -303,7 +299,7 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         print('Document uploaded: ', res)
         vr = await client.select_one(VantiqResources.DOCUMENTS, 'test_doc_upload')
@@ -360,6 +356,7 @@ Event.ack()"""}
 
     async def check_crud_operations(self, client: Vantiq, skip_pretest_cleanup: bool = False):
         vr = await client.select(VantiqResources.TYPES)
+        self.dump_result('SELECT types response:', vr)
         found_clusters = False
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -368,7 +365,7 @@ Event.ack()"""}
         for row in rows:
             assert 'name' in row
             assert 'ars_namespace' in row
-            if 'resourceName' in row:
+            if 'resourceName' in row.keys():
                 if row['resourceName'] == VantiqResources.K8S_CLUSTERS:
                     found_clusters = True
         assert found_clusters
@@ -392,7 +389,7 @@ Event.ack()"""}
             # Checking that myriad parameters works as expected...
             rows = vr.body
             assert isinstance(rows, list)
-            assert rows is not None
+            assert rows
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
             assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
@@ -401,7 +398,7 @@ Event.ack()"""}
             assert isinstance(vr, VantiqResponse)
             assert vr.is_success
             rows = vr.body
-            assert rows is not None
+            assert rows
             assert isinstance(rows, list)
             assert len(rows) > 0
 
@@ -412,9 +409,9 @@ Event.ack()"""}
 
             coroutine = client.count(VantiqResources.TYPES,
                                      {'resourceName': VantiqResources.unqualified_name(VantiqResources.TYPES)})
-            assert coroutine is not None
+            assert coroutine
             vr = await coroutine
-            assert vr is not None
+            assert vr
             assert vr.is_success
             assert vr.count == 1
         except VantiqException as ve:
@@ -436,20 +433,20 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert 'name' in res
         assert 'ingressDefaultNode' in res
         assert '_id' in res
         assert res['name'] == test_cluster_name
         assert res['ingressDefaultNode'] == f'vantiq-{test_cluster_name}-node'.lower()
-        assert res['_id'] is not None
+        assert res['_id']
 
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         row = vr.body
-        assert row is not None
+        assert row
         assert isinstance(row, dict)
         new_node_name = 'some-new-node'
         row['ingressDefaultNode'] = new_node_name
@@ -458,13 +455,13 @@ Event.ack()"""}
         assert vr.is_success
         res = vr.body
         print('K8sCluster upsert result:', res)
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert 'ingressDefaultNode' in res
         assert res['ingressDefaultNode'] == new_node_name
         # These will be missing since not updated
-        assert 'name' not in res
-        assert '_id' not in res
+        assert 'name' not in res.keys()
+        assert '_id' not in res.keys()
 
         # Fetch to ensure still there & to refresh our record to avoid occ issues
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
@@ -477,19 +474,19 @@ Event.ack()"""}
         new_node_name = 'some-other-new-node'
         row['ingressDefaultNode'] = new_node_name
         vr = await client.update(VantiqResources.K8S_CLUSTERS, test_cluster_name, row)
-        self.dump_errors('update results: ', vr)
+        self.dump_result('update results: ', vr)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         res = vr.body
         print('K8sCluster update result:', res)
 
-        assert res is not None
+        assert res
         assert isinstance(res, dict)
         assert 'ingressDefaultNode' in res
         assert res['ingressDefaultNode'] == new_node_name
         # These will be missing since not updated
-        assert 'name' not in res
-        assert '_id' not in res
+        assert 'name' not in res.keys()
+        assert '_id' not in res.keys()
 
         # Run a delete operation of something not there -- want to ensure that we're passing the values as required
         vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name': 'ratherUnlikelyName'})
@@ -501,14 +498,14 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         row = vr.body
-        assert row is not None
+        assert row
         assert isinstance(row, dict)
         assert 'name' in row
         assert '_id' in row
         assert 'ingressDefaultNode' in row
         assert row['name'] == test_cluster_name
         assert row['ingressDefaultNode'] == new_node_name
-        assert row['_id'] is not None
+        assert row['_id']
         vr = await client.delete_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -583,10 +580,7 @@ Event.ack()"""}
 
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
-        if not vr.is_success:
-            for err in vr.errors:
-                print('Error: code: {0}, message: {1}, params: {2}'.format(err.code, err.message, err.params))
-        self.dump_errors('Count error', vr)
+        self.dump_result('Count error', vr)
         assert vr.is_success
         assert vr.count is not None
         assert vr.count == 1
@@ -617,7 +611,7 @@ Event.ack()"""}
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
 
-        self.dump_errors('Execute error', vr)
+        self.dump_result('Execute error', vr)
         assert vr.is_success
         assert vr.content_type == 'application/json'
         assert vr.body is not None
@@ -637,14 +631,14 @@ Event.ack()"""}
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
 
-        self.dump_errors('Execute error', vr)
+        self.dump_result('Execute error', vr)
         assert vr.is_success
         assert vr.content_type == 'application/json'
-        assert vr.body is not None
+        assert vr.body
         assert isinstance(vr.body, dict)
         print('body:', vr.body)
-        assert 'arg1' in vr.body
-        assert 'arg2' in vr.body
+        assert 'arg1' in vr.body.keys()
+        assert 'arg2' in vr.body.keys()
         assert vr.body['arg1'] == proc_args['arg1']
         assert vr.body['arg2'] == proc_args['arg2']
         assert 'namespace' in vr.body
@@ -652,7 +646,7 @@ Event.ack()"""}
         assert isinstance(ns, str)
         vr = await client.get_namespace_users(ns)
         assert isinstance(vr, VantiqResponse)
-        self.dump_errors('get_namespace_users error', vr)
+        self.dump_result('get_namespace_users error', vr)
         assert vr.is_success
         body = vr.body
         assert isinstance(body, list)
@@ -664,7 +658,7 @@ Event.ack()"""}
         if user_rec is None:
             # If there's going to be an error, dump some diagnostics
             print('Users: ', body)
-        assert user_rec is not None
+        assert user_rec
 
     @pytest.mark.timeout(10)
     @pytest.mark.asyncio
@@ -679,16 +673,16 @@ Event.ack()"""}
         await v.connect()
         await v.authenticate(_username, _password)
         assert v.is_authenticated()
-        assert v.get_id_token() is not None
-        assert v.get_access_token() is not None
-        assert v.get_username() is not None
+        assert v.get_id_token()
+        assert v.get_access_token()
+        assert v.get_username()
         assert v.get_username() == _username
 
         await v.refresh()
         assert v.is_authenticated()
-        assert v.get_id_token() is not None
-        assert v.get_access_token() is not None
-        assert v.get_username() is not None
+        assert v.get_id_token()
+        assert v.get_access_token()
+        assert v.get_username()
         assert v.get_username() == _username
 
         await v.close()
@@ -714,14 +708,14 @@ Event.ack()"""}
 
         assert v.is_authenticated()
         assert v.get_id_token() is None  # In this case, we haven't really talked to the server yet, so no id token.
-        assert v.get_access_token() is not None
-        assert v.get_username() is not None
+        assert v.get_access_token()
+        assert v.get_username()
         assert v.get_username() == _username
 
         await v.refresh()
         assert v.is_authenticated()
-        assert v.get_id_token() is not None
-        assert v.get_access_token() is not None
+        assert v.get_id_token()
+        assert v.get_access_token()
         await v.close()
 
         # Check that we've dumped connection information
@@ -739,7 +733,7 @@ Event.ack()"""}
     async def test_crud_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            if _username is not None:
+            if _username:
                 await client.authenticate(_username, _password)
             else:
                 await client.set_access_token(_access_token)
@@ -754,7 +748,7 @@ Event.ack()"""}
     async def test_crud_with_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url)  # Also test defaulting of API version
-        if _access_token is not None:
+        if _access_token:
             await client.set_access_token(_access_token)
         else:
             await client.authenticate(_username, _password)
@@ -767,7 +761,7 @@ Event.ack()"""}
     async def test_other_ops_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            if _username is not None:
+            if _username:
                 await client.authenticate(_username, _password)
             else:
                 await client.set_access_token(_access_token)
@@ -782,7 +776,7 @@ Event.ack()"""}
     async def test_other_ops_with_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url)  # Also test defaulting of API version
-        if _access_token is not None:
+        if _access_token:
             await client.set_access_token(_access_token)
         else:
             await client.authenticate(_username, _password)
