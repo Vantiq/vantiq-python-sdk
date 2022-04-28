@@ -187,7 +187,7 @@ class VantiqError:
         self.params = params
 
     def __str__(self):
-        return 'VantiqError: code: {0}, message: {1}'.format(self.code, self.message)
+        return f'VantiqError: code: {self.code}, message: {self.message}'
 
     def __repr__(self):
         return f'VantiqError(code={self.code}, message={self.message}, params={self.params})'
@@ -843,8 +843,7 @@ class Vantiq:
                                   'The object to be upserted cannot be None.', [])
         operation = 'upsert'
         try:
-            if '_id' in instance.keys():
-                instance.pop('_id')
+            instance.pop('_id', None)
             query_params = {'upsert': 'true'}
             method = 'POST'
             path = self._build_path(resource, None)
@@ -878,8 +877,7 @@ class Vantiq:
                                   'The object to be upserted cannot be None.', [])
         operation = 'update'
         try:
-            if '_id' in instance.keys():
-                instance.pop('_id')
+            instance.pop('_id', None)
             query_params = {}
             method = 'PUT'
             path = self._build_path(resource, resource_id)
@@ -1007,7 +1005,6 @@ class Vantiq:
             # noinspection PyProtectedMember
             await ret_val._populate_body(resp)
             return ret_val
-
         except VantiqException:
             # If we've already handled or wrapped it, just pass it along
             raise
@@ -1331,10 +1328,10 @@ class _VantiqSubscriber:
         self.is_authenticated = False
 
     def __str__(self):
-        ret_val =  f'VantiqSubscriber for {str(self.parent)}'
+        ret_val = f'VantiqSubscriber for {str(self.parent)}'
         if self.subscriptions:
             for key, value in self.subscriptions.items():
-                ret_val += '\n\t' + key + ': ' + value
+                ret_val += '\n\t' + key + ': ' + str(value)
         return ret_val
 
     def __repr__(self):
