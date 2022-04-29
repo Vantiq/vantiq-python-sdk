@@ -237,7 +237,7 @@ class VantiqResponse:
 
     def __str__(self):
         ret_val = f'VantiqResponse: successful: {self.is_success}, status_code: {self.status_code}, ' \
-               f'content_type:{self.content_type}, count: {self.count})'
+                  f'content_type:{self.content_type}, count: {self.count})'
         if self.is_success:
             if isinstance(self.body, list):
                 if len(self.body) == 0:
