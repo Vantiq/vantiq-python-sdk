@@ -610,7 +610,6 @@ Event.ack()"""}
         proc_args = {'arg1': 'I am argument 1', 'arg2': 'I am argument 2'}
         vr = await client.execute(TEST_PROCEDURE, proc_args)
         assert isinstance(vr, VantiqResponse)
-
         self.dump_result('Execute error', vr)
         assert vr.is_success
         assert vr.content_type == 'application/json'
@@ -620,6 +619,33 @@ Event.ack()"""}
         assert 'arg2' in vr.body
         assert vr.body['arg1'] == proc_args['arg1']
         assert vr.body['arg2'] == proc_args['arg2']
+
+        # Now, test the same thing with no parameters
+        vr = await client.execute(TEST_PROCEDURE, {})
+        assert isinstance(vr, VantiqResponse)
+        self.dump_result('Execute (no params) error', vr)
+        assert vr.is_success
+        assert vr.content_type == 'application/json'
+        assert vr.body is not None
+        assert isinstance(vr.body, dict)
+        assert 'arg1' in vr.body
+        assert 'arg2' in vr.body
+        assert vr.body['arg1'] is None
+        assert vr.body['arg2'] is None
+
+        # Now, test the same thing with None as the parameters
+        # This is frowned upon, but python will let it thru so we'll make sure it works.
+        vr = await client.execute(TEST_PROCEDURE, None)
+        assert isinstance(vr, VantiqResponse)
+        self.dump_result('Execute (params -> None) error', vr)
+        assert vr.is_success
+        assert vr.content_type == 'application/json'
+        assert vr.body is not None
+        assert isinstance(vr.body, dict)
+        assert 'arg1' in vr.body
+        assert 'arg2' in vr.body
+        assert vr.body['arg1'] is None
+        assert vr.body['arg2'] is None
 
     @staticmethod
     def check_test_conditions():

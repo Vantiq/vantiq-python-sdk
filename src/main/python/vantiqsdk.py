@@ -237,7 +237,7 @@ class VantiqResponse:
 
     def __str__(self):
         ret_val = f'VantiqResponse: successful: {self.is_success}, status_code: {self.status_code}, ' \
-               f'content_type:${self.content_type}, count: {self.count})'
+               f'content_type:{self.content_type}, count: {self.count})'
         if self.is_success:
             if isinstance(self.body, list):
                 if len(self.body) == 0:
@@ -259,7 +259,7 @@ class VantiqResponse:
 
     def __repr__(self):
         return f'VantiqResponse(successful={self.is_success}, status_code={self.status_code}, ' \
-               f'content_type=${self.content_type}) # count={self.count}, errors={self.errors}, ' \
+               f'content_type={self.content_type}) # count={self.count}, errors={self.errors}, ' \
                f'body={self.body}'
 
     @classmethod
@@ -598,11 +598,13 @@ class Vantiq:
                                  instance: Union[dict, None] = None) -> VantiqResponse:
         if self._is_authenticated:
             try:
-                body = None
                 headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
-                if instance:
-                    body = json.dumps(instance)
-                    headers[aiohttp.hdrs.CONTENT_TYPE] = 'application/json'
+                if instance is None:
+                    # When no parameters are passed at all, we get 404's back.  So None as parameters == {}.
+                    instance = {}
+
+                body = json.dumps(instance)
+                headers[aiohttp.hdrs.CONTENT_TYPE] = 'application/json'
                 resp: aiohttp.ClientResponse = await self._connection.request(method, path, headers=headers,
                                                                               query_param=query_params, body=body)
                 ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
@@ -671,7 +673,7 @@ class Vantiq:
             query_params = {}
             if properties:
                 query_params['props'] = json.dumps(properties)
-            if where:
+            if where is not None:
                 query_params['where'] = json.dumps(where)
             if sort_spec:
                 query_params['sort'] = json.dumps(sort_spec)
@@ -754,7 +756,7 @@ class Vantiq:
         operation = 'delete'
         try:
             query_params = {'count': 'true'}
-            if where:
+            if where is not None:
                 query_params['where'] = json.dumps(where)
             method = 'DELETE'
             path = self._build_path(resource, None)
@@ -1032,7 +1034,7 @@ class Vantiq:
             # Here, specify that we want the count but don't really care about the data.  So we'll limit
             # the return to a single row & limit the properties returned
             query_params = {'count': 'true', 'limit': 1}
-            if where:
+            if where is not None:
                 query_params['where'] = json.dumps(where)
             props = ['_id']  # Since we don't care about the data, return the least we can
             query_params['props'] = json.dumps(props)
