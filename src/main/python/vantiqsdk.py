@@ -50,6 +50,9 @@ class _RestClient:
         self._url = url
         self._con = None
 
+    def __str__(self):
+        return f'_RestClient for {self._url}'
+
     def __repr__(self):
         return f'_RestClient({self._url})'
 
@@ -79,14 +82,14 @@ class _RestClient:
         assert isinstance(url, str)
 
         method = method.upper()
-        assert method in ('GET', 'POST', "PUT", "DELETE")
+        assert method in ('GET', 'POST', 'PUT', 'DELETE')
 
         headers = headers or {}
         if data is None:
             data = body
 
         try:
-            if method == "GET":
+            if method == 'GET':
                 return await self._con.get(url, params=query_param, headers=headers)
             elif method == 'POST':
                 return await self._con.post(url, params=query_param, headers=headers, data=data)
@@ -240,7 +243,7 @@ class VantiqResponse:
                   f'content_type:{self.content_type}, count: {self.count})'
         if self.is_success:
             if isinstance(self.body, list):
-                if len(self.body) == 0:
+                if not self.body:
                     ret_val += '\n\t body: empty'
                 else:
                     for item in self.body:
@@ -269,8 +272,7 @@ class VantiqResponse:
         return vr
 
     def _populate_count(self, resp: aiohttp.ClientResponse) -> None:
-        hdrs = resp.headers
-        cnt = hdrs.get('X-Total-Count')
+        cnt = resp.headers.get('X-Total-Count')
         if cnt is not None:
             self.count = int(cnt)
 
@@ -282,11 +284,9 @@ class VantiqResponse:
         else:
             # If we don't recognize the type, just return all the bytes
             self.body = await resp.read()
-        return
 
     def _populate_streaming_body(self, resp: aiohttp.ClientResponse) -> None:
         self.body = resp.content
-        return
 
     async def _populate_errors(self, resp: aiohttp.ClientResponse) -> None:
         # noinspection PyBroadException
@@ -368,7 +368,7 @@ class Vantiq:
                 URL String at which to find the Vantiq Server
 
             api_version : str (optional)
-                Version of the API to uwe. Defaults to '1'
+                Version of the API to use. Defaults to '1'
 
         Returns:
             Vantiq client object with which to interact with the Vantiq system.
@@ -1060,7 +1060,7 @@ class Vantiq:
                 The message describing the query to be sent.  These messages are source specific.
 
         Returns:
-            VantiqResponse indicating the success or failure of th query.  The body field will contain the results
+            VantiqResponse indicating the success or failure of the query.  The body field will contain the results
             of the query (if applicable).
         """
 
