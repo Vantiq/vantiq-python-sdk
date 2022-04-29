@@ -1196,9 +1196,9 @@ class Vantiq:
                     await self._subscriber.connected_future
             except Exception as e:
                 failure_reason = e
-            if failure_reason is None:
+            if not failure_reason:
                 failure_reason = self._subscriber.connected_future.exception()
-            if failure_reason is None:
+            if not failure_reason:
                 failure_reason = self._subscriber.connected_future.result()
             if failure_reason != 'OK':
                 await self._subscriber.close()
