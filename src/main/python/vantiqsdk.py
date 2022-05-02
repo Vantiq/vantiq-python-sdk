@@ -213,6 +213,9 @@ class VantiqException(RuntimeError):
         self.params = params
         super().__init__(message.format(*params))
 
+    def __str__(self):
+        return f'VantiqException: code: {self.code}, message={self.message.format(*self.params)}'
+
     def __repr__(self):
         return f'VantiqException(code={self.code}, message={self.message}, params={self.params})'
 
