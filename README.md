@@ -91,10 +91,6 @@ in the VantiqResponse instance.
 
 For the full documentation on the SDK, see the [SDK API Reference](./docs/api.md).
 
-## Examples
-
-Example projects can be found under the [examples directory](./examples).
-
 ## Developers
 
 The project is set up as a `gradle` project.  To run the tests, use
