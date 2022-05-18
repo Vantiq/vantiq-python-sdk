@@ -10,8 +10,11 @@ ext {
     } else {
         pypi_repo = 'testpypi'
     }
-}
 
+    if (!project.rootProject.hasProperty('vantiqSdkVersion')) {
+        vantiqSdkVersion = '1.0.1'
+    }
+}
 
 python {
     // python binary name (python or python3 by default)
@@ -94,9 +97,20 @@ tasks.withType(PythonTask) {
     }
 }
 
+task generateSetupCfg(type: Copy) {
+    into project.projectDir
+    from 'src/main/templates'
+    include '**/setup.cfg.tmpl'
+    expand(
+        vantiqSdkVersion: vantiqSdkVersion)
+    rename ~/(.*)\.tmpl/, '$1'
+}
+
 task build_distribution(type: PythonTask) {
     module = 'build'
 }
+
+build_distribution.dependsOn generateSetupCfg
 
 task test() {}
 
@@ -121,6 +135,7 @@ task publish(type: PythonTask) {
 }
 
 publish.mustRunAfter build_distribution
+publish.dependsOn generateSetupCfg
 clean.dependsOn pyclean
 assemble.finalizedBy build_distribution
 build.finalizedBy test
