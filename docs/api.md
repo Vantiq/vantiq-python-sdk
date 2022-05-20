@@ -514,6 +514,9 @@ source is required (_e.g._, `MySource`).
 For topics, this will subscribe to any messages published on that topic.  The
 name of the topic is required (_e.g._, `/some/topic`).
 
+For services, this will subscribe to any messages published to the named service event. The name of the
+service and service event is required, and should be passed into the resource id as service_name/event_name.
+
 For types, this will subscribe to the specified type event.  The name of the
 type and the operation (_i.e._, `insert`, `update`, or `delete`) are required.
 
