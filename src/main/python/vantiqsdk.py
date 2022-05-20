@@ -1223,13 +1223,16 @@ class Vantiq:
                         callback: Callable[[str, dict], Awaitable[None]], params: dict) -> VantiqResponse:
         """(Async) Subscribe to an event from the Vantiq server.
 
-        Subscribes to a specific topic, source, or type event.
+        Subscribes to a specific topic, source, service, or type event.
 
         For sources, this will subscribe to message arrival events.  The name of the
         source is required (e.g. "MySource").
 
         For topics, this will subscribe to any messages published on that topic.  The
         name of the topic is required (e.g. "/some/topic").
+
+        For services, this will subscribe to any messages published to the named service event. The name of the
+        service and service event is required, and should be passed into the resource id as service_name/event_name.
 
         For types, this will subscribe to the specified type event.  The name of the
         type and the operation (i.e. "insert", "update", or "delete") are required.
@@ -1264,7 +1267,7 @@ class Vantiq:
             path = "/" + resource[len(_SYSTEM_PREFIX):] + resource_id  # .removeprefix(_SYSTEM_PREFIX) + resource_id
         else:
             path = "/" + resource[len(_SYSTEM_PREFIX):] + '/' + resource_id  # .removeprefix(_SYSTEM_PREFIX) ...
-        if resource in [VantiqResources.SOURCES, VantiqResources.TOPICS]:
+        if resource in [VantiqResources.SERVICES, VantiqResources.SOURCES, VantiqResources.TOPICS]:
             if operation:
                 raise VantiqException('io.vantiq.python.operationillegal',
                                       "Operation only support for {0}",
@@ -1278,7 +1281,7 @@ class Vantiq:
             path += "/" + operation.lower()
         else:
             raise VantiqException('io.vantiq.python.invalidsubscribetype',
-                                  "Only 'topics', 'sources' and 'types' support subscribe",
+                                  "Only 'topics', 'sources', 'services', and 'types' support subscribe",
                                   [])
 
         if self._subscriber is None:
