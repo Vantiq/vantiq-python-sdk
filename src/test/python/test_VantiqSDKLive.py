@@ -37,6 +37,12 @@ TEST_RELIABLE_TOPIC = '/test/pythonsdk/reliabletopic'
 TEST_PROCEDURE = 'pythonsdk.echo'
 TEST_TYPE = 'TestType'
 
+TEST_SERVICE = 'test.testPythonSDK.testService'
+TEST_SERVICE_EVENT = 'testPythonServiceEvent'
+TEST_SERVICE_EVENT_IMPL_TOPIC = f'/topics/{TEST_SERVICE}/{TEST_SERVICE_EVENT}'
+TEST_SERVICE_EVENT_CONTENTS = {'name': 'outbound event', 'val': {'breed': 'English Springer'}}
+TEST_SERVICE_EVENT_CONTENTS_VAIL = '{name: "outbound event", val: {breed: "English Springer"}}'
+
 
 class TestLiveConnection:
 
@@ -81,8 +87,29 @@ INSERT INTO {TEST_TYPE}(event.newValue)
 Event.ack()"""}
             vr = await client.insert(VantiqResources.RULES, rule)
             assert vr.is_success
+
+            service = {'name':  TEST_SERVICE,
+                       'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND',
+                                                           'implementingEventPath': TEST_SERVICE_EVENT_IMPL_TOPIC
+                                                           }
+                                      }
+                       }
+            vr = await client.insert(VantiqResources.SERVICES, service)
+            assert vr.is_success
+
+            ob_publisher = {'ruleText': f"""
+            PACKAGE test.testPythonSDK
+            PROCEDURE testService.publishToOutbound()
+            PUBLISH {TEST_SERVICE_EVENT_CONTENTS_VAIL} TO SERVICE EVENT "{TEST_SERVICE}/{TEST_SERVICE_EVENT}" 
+            """}
+
+            vr = await client.insert('system.procedures', ob_publisher)
+            self.dump_result('Defining publishToOutbound', vr)
+            assert vr.is_success
+
         except Exception:
             print('Unable to setup environment:', traceback.format_exc())
+            assert False  # Cause test to fail
 
     @pytest.fixture(autouse=True)
     def _setup(self):
@@ -132,6 +159,13 @@ Event.ack()"""}
             assert msg['body']['path'] == '/topics/test/pythonsdk/topic/publish'
             assert msg['body']['value'] == {'foo': 'bar'}
 
+    def check_callback_serviceevent_publish(self, what: str, msg: dict):
+        assert what in ['connect', 'message']
+        if what == 'message':
+            assert msg['status'] < 400
+            assert msg['body']['path'] == TEST_SERVICE_EVENT_IMPL_TOPIC + '/publish'
+            assert msg['body']['value'] == TEST_SERVICE_EVENT_CONTENTS
+
     def check_callback_topic_publish_saveit(self, what: str, msg: dict):
         assert what in ['connect', 'message']
         if what == 'message':
@@ -148,6 +182,29 @@ Event.ack()"""}
     async def check_subscription_ops(self, client: Vantiq, prestart_transport: bool):
         if prestart_transport:
             await client.start_subscriber_transport()
+
+        svc_event_id = f'{TEST_SERVICE}/{TEST_SERVICE_EVENT}'
+        vr = await client.subscribe(VantiqResources.SERVICES, svc_event_id,
+                                    None, self.subscriber_callback, {})
+        assert isinstance(vr, VantiqResponse)
+        self.dump_result('Subscription Error', vr)
+        assert vr.is_success
+        orig_count = self.callback_count
+        await asyncio.sleep(0.5)
+        self.message_checker = self.check_callback_serviceevent_publish
+
+        vr = await client.execute(f'{TEST_SERVICE}.publishToOutbound', {})
+        self.dump_result('Publish Service Event Error', vr)
+        assert isinstance(vr, VantiqResponse)
+        assert vr.is_success
+
+        # Now, we should see that our callback was called after a little while.
+
+        while self.callback_count < orig_count + 2:
+            await asyncio.sleep(0.1)
+        assert self.callbacks == ['connect', 'message']
+
+        self.callbacks = []
 
         await client.delete(TEST_TYPE, {})
         vr = await client.subscribe(VantiqResources.TOPICS, TEST_TOPIC, None, self.subscriber_callback, {})

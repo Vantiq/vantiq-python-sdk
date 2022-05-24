@@ -12,7 +12,7 @@ ext {
     }
 
     if (!project.rootProject.hasProperty('vantiqSdkVersion')) {
-        vantiqSdkVersion = '1.0.2'
+        vantiqSdkVersion = '1.1.0'
     }
 }
 
@@ -127,6 +127,8 @@ task copyTestResources() {
 task pyclean(type: Delete) {
     delete "${project.projectDir}/build"
     delete "${project.projectDir}/dist"
+    // Also delete generated stuff
+    delete "${project.projectDir}/setup.cfg"
 }
 
 task publish(type: PythonTask) {
