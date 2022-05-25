@@ -408,8 +408,8 @@ Vantiq Document. Providing both `filename` and `doc_name` in this case is an err
 ```python
 vr: VantiqResponse = await client.upload(VantiqResources.DOCUMENTS, 'image/png', 'path/name.png')
 if vr.is_success:
-    # Here, we will have uploaded a file named `/file/name.png`,
-    # and created a Document named `/file/name.png`.
+    # Here, we will have uploaded a file named `path/name.png`,
+    # and created a Document named `path/name.png`.
 
 vr: VantiqResponse = await client.upload(VantiqResource.DOCUMENTS, 'text/plain', None,
                                          'my document', 'some content for my document')
