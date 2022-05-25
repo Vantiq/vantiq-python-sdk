@@ -1047,7 +1047,7 @@ class Vantiq:
             method = 'GET'
             path = self._build_path(resource, None)
             resp = await self._perform_operation(operation, method, path, query_params, False)
-            resp.body = None  # After a count, we don't need to return the data fetched (since we decided it anyway)
+            resp.body = {}  # After a count, we don't need to return the data fetched (since we decided it anyway)
             return resp
         except VantiqException:
             # If we've already handled or wrapped it, just pass it along
