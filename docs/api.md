@@ -382,14 +382,14 @@ if vr.is_success:
             data = await reader.read(100)  # Read our data 100 bytes at a time
             if len(data) == 0:
                 break
-                # Do something with the data
+            # Do something with the data
                 ...
 ```
 
 ### Vantiq.upload() (async) 
 Upload a file (or in-memory data), creating a object to hold that data.
 
-This allows the upload of a file to create a document, inage, video, or tensorflow model.
+This allows the upload of a file to create a document, image, video, or tensorflow model.
 
 #### Parameters
    
@@ -406,10 +406,10 @@ Vantiq Document. Providing both `filename` and `doc_name` in this case is an err
 
 ### Examples
 ```python
-vr: VantiqResponse = await client.upload(VantiqResources.DOCUMENTS, 'iamge/png', '/file/name.png')
+vr: VantiqResponse = await client.upload(VantiqResources.DOCUMENTS, 'image/png', 'path/name.png')
 if vr.is_success:
-    # Here, we will have uploaded a file named `/file/name.png`,
-    # and created a Document named `/file/name.png`.
+    # Here, we will have uploaded a file named `path/name.png`,
+    # and created a Document named `path/name.png`.
 
 vr: VantiqResponse = await client.upload(VantiqResource.DOCUMENTS, 'text/plain', None,
                                          'my document', 'some content for my document')
