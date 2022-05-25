@@ -807,7 +807,8 @@ class Vantiq:
             resource : str
                 Name of the Vantiq resource into which to insert.
             instance : dict
-                The values to be inserted.
+                The values to be inserted.  The key names in the _instance_ parameter
+                must match the property names in the Vantiq object.
 
         Returns:
             VantiqResponse indicating success/failure of the operation and the value inserted.
@@ -837,7 +838,8 @@ class Vantiq:
                 resource : str
                     Name of the Vantiq resource into which to upsert.
                 instance : dict
-                    The values to be upserted.
+                    The values to be upserted.   The key names in the _instance_ parameter
+                    must match the property names in the Vantiq object.
 
             Returns:
                 VantiqResponse indicating success/failure of the operation and the value upserted.
@@ -871,7 +873,8 @@ class Vantiq:
                 resource_id : str
                     The key of the record to look up for replacement.  The _id property can be used/
                 instance : dict
-                    The values to be updated.
+                    The values to be updated. The key names in the _instance_ parameter
+                    must match the property names being updated in the Vantiq object.
 
             Returns:
                 VantiqResponse indicating success/failure of the operation and the value updated.
@@ -962,10 +965,10 @@ class Vantiq:
 
         Examples:
         ::
-            vr: VantiqResponse = await client.upload(VantiqResources.DOCUMENTS, 'iamge/png', '/file/name.png')
+            vr: VantiqResponse = await client.upload(VantiqResources.DOCUMENTS, 'iamge/png', 'path/name.png')
             if vr.is_success:
-                # Here, we will have uploaded a file named `/file/name.png`,
-                # and created a Document named `/file/name.png`.
+                # Here, we will have uploaded a file named `path/name.png`,
+                # and created a Document named `path/name.png`.
 
             vr: VantiqResponse = await client.upload(VantiqResource.DOCUMENTS, 'text/plain', None,
                                                      'my document', 'some content for my document')
@@ -1018,7 +1021,7 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   ['upload']) from e
 
-    async def count(self, resource: str, where: Union[dict, None]) -> VantiqResponse:
+    async def count(self, resource: str, where: Union[dict, None] = None) -> VantiqResponse:
         """(Async) Return the number of items in a Vantiq resource that satisfy the where clause
 
         Parameters:
@@ -1044,6 +1047,7 @@ class Vantiq:
             method = 'GET'
             path = self._build_path(resource, None)
             resp = await self._perform_operation(operation, method, path, query_params, False)
+            resp.body = None  # After a count, we don't need to return the data fetched (since we decided it anyway)
             return resp
         except VantiqException:
             # If we've already handled or wrapped it, just pass it along
@@ -1220,7 +1224,7 @@ class Vantiq:
             return None
 
     async def subscribe(self, resource: str, resource_id: str, operation: Union[str, None],
-                        callback: Callable[[str, dict], Awaitable[None]], params: dict) -> VantiqResponse:
+                        callback: Callable[[str, dict], Awaitable[None]], params: dict = None) -> VantiqResponse:
         """(Async) Subscribe to an event from the Vantiq server.
 
         Subscribes to a specific topic, source, service, or type event.
@@ -1256,7 +1260,7 @@ class Vantiq:
                     value : dict -- the value of the event (type inserted, topic contents, etc.)
 
             params : dict
-                Parameters for the subscription
+                (optional) Parameters for the subscription. May be subscription dependent, but can usually be ignored.
         Returns:
             VantiqResponse indicating the success of the operation.
 

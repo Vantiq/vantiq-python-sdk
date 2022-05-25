@@ -66,20 +66,14 @@ on the SDK classes can be immediately awaited to run in, effectively, a synchron
 fashion, or they can return an `Awaitable` that can be _awaited_ later.
 
 ```python
-vr: VantiqResponse = await vantiq.select(VantiqResources.TYPES, 
-                                         None, 
-                                         None, 
-                                         None)
+vr: VantiqResponse = await vantiq.select(VantiqResources.TYPES)
 
 ```
 
 Alternatively,
 
 ```python
-to_await = vantiq.select(VantiqResources.TYPES, 
-                         None, 
-                         None, 
-                         None)
+to_await = vantiq.select(VantiqResources.TYPES)
 ...
 vr: VantiqResponse = await to_await
 ```
