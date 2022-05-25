@@ -185,7 +185,7 @@ Event.ack()"""}
 
         svc_event_id = f'{TEST_SERVICE}/{TEST_SERVICE_EVENT}'
         vr = await client.subscribe(VantiqResources.SERVICES, svc_event_id,
-                                    None, self.subscriber_callback, {})
+                                    None, self.subscriber_callback)
         assert isinstance(vr, VantiqResponse)
         self.dump_result('Subscription Error', vr)
         assert vr.is_success
@@ -397,9 +397,11 @@ Event.ack()"""}
         if not skip_pretest_cleanup:
             assert len(docs) == 3
 
-        vr = await client.count(VantiqResources.DOCUMENTS, None)
+        vr = await client.count(VantiqResources.DOCUMENTS)
         assert vr.count is not None
         assert vr.count == len(docs)
+        assert vr.body is not None
+        assert vr.body == {}
 
         vr = await client.select_one(VantiqResources.DOCUMENTS, filename_sans_leading_slash)
         assert isinstance(vr, VantiqResponse)
@@ -463,6 +465,7 @@ Event.ack()"""}
             assert vr.is_success
             assert vr.count is not None
             assert vr.count == len(rows)
+            assert vr.body == {}
 
             coroutine = client.count(VantiqResources.TYPES,
                                      {'resourceName': VantiqResources.unqualified_name(VantiqResources.TYPES)})
@@ -471,6 +474,7 @@ Event.ack()"""}
             assert vr
             assert vr.is_success
             assert vr.count == 1
+            assert vr.body == {}
         except VantiqException as ve:
             traceback.print_exc()
             assert ve is None
@@ -611,6 +615,7 @@ Event.ack()"""}
                 print('Error: code: {0}, message: {1}, params: {2}'.format(err.code, err.message, err.params))
 
         assert vr.is_success
+        assert vr.body == {}
         assert vr.count is not None
         old_count = vr.count
         if vr.count > 0:
@@ -641,6 +646,7 @@ Event.ack()"""}
         assert vr.is_success
         assert vr.count is not None
         assert vr.count == 1
+        assert vr.body == {}
 
         # Now verify that the correct object was inserted
 

@@ -12,7 +12,11 @@ The SDK consists of the following classes
 
 The Vantiq SDK is built atop the asyncio-based aiohttp. Consequently, operations marked as async must be awaited.
 See [the Python asyncio documentation](https://docs.python.org/3/library/asyncio.html) for more details.
+The [Coroutines and Tasks documentation](https://docs.python.org/3/library/asyncio-task.html) has examples of
+_asyncio_ Python programs.
 
+Note that some Windows environments may require the setting of the _event loop policy_.
+Please see [asyncio policy documentation](https://docs.python.org/3/library/asyncio-policy.html) for details.
 
 ## VantiqResources
 
@@ -324,7 +328,8 @@ Insert an item into Vantiq Resource.
 #### Parameters
 
 * _resource_ : str -- Name of the Vantiq resource into which to insert.
-* _instance_ : dict -- The values to be inserted.
+* _instance_ : dict -- The values to be inserted.  The key names in the _instance_ parameter 
+must match the property names in the Vantiq object.
 
 #### Returns
 
@@ -338,7 +343,8 @@ Upsert an item into Vantiq Resource.
 #### Parameters
 
 * _resource_ : str --  Name of the Vantiq resource into which to upsert.
-* _instance_ : dict -- The values to be upserted.
+* _instance_ : dict -- The values to be upserted.   The key names in the _instance_ parameter 
+must match the property names in the Vantiq object.
 
 #### Returns
 
@@ -352,7 +358,8 @@ Update an item in a Vantiq Resource.
 
 * _resource_ : str -- Name of the Vantiq resource in which to update.
 * _resource_id_ : str -- The key of the record to look up for replacement.  The _id property can be used.
-* _instance_ : dict -- The values to be updated.
+* _instance_ : dict -- The values to be updated.  The key names in the _instance_ parameter 
+must match the property names being updated in the Vantiq object.
 
 #### Returns
 
@@ -383,7 +390,7 @@ if vr.is_success:
             if len(data) == 0:
                 break
             # Do something with the data
-                ...
+            ...
 ```
 
 ### Vantiq.upload() (async) 
@@ -535,7 +542,9 @@ The callback message contains the following properties:
     * _path_ : str -- the event specification
     * _value_ : dict -- the value of the event (type inserted, topic contents, etc.)
     
-* _params_ : dict -- Parameters for the subscription
+* _params_ : dict -- (optional) Parameters for the subscription. May be subscription dependent,
+but can usually be ignored.
+
 
 #### Returns
 
