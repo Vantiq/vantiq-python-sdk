@@ -83,7 +83,8 @@ in the VantiqResponse instance.
 
 ## Documentation
 
-For the full documentation on the SDK, see the [SDK API Reference](./docs/api.md).
+For the full documentation on the SDK, see the
+[SDK API Reference](https://github.com/Vantiq/vantiq-python-sdk/blob/master/docs/api.md).
 
 ## Developers
 
@@ -123,4 +124,5 @@ VANTIQ_PASSWORD <Password for that Vantiq user>
 
 ## Copyright and License
 
-Copyright &copy; 2022 Vantiq, Inc.  Code released under the [MIT license](./LICENSE.txt).
+Copyright &copy; 2022 Vantiq, Inc.  Code released under the
+[MIT license](https://github.com/Vantiq/vantiq-python-sdk/blob/master/LICENSE.txt).
