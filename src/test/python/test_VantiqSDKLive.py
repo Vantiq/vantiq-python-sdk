@@ -91,10 +91,8 @@ Event.ack()"""}
             assert vr.is_success
 
             service = {'name':  TEST_SERVICE,
-                       'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND'
-                                                           }
-                                      }
-                       }
+                       'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND'}}
+                      }
             vr = await client.insert(VantiqResources.SERVICES, service)
             assert vr.is_success
 
@@ -627,7 +625,9 @@ Event.ack()"""}
             assert vr.count == old_count
 
         now = datetime.now()
-        dt = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        # Server now shows millis, but strftime only does whole seconds or micros.
+        # Give a made-up millis value for the server to parrot
+        dt = now.strftime('%Y-%m-%dT%H:%M:%S.123Z')
 
         assert isinstance(dt, str)
         embedded = {'a': 1, 'b': 2}
