@@ -37,9 +37,11 @@ TEST_RELIABLE_TOPIC = '/test/pythonsdk/reliabletopic'
 TEST_PROCEDURE = 'pythonsdk.echo'
 TEST_TYPE = 'TestType'
 
-TEST_SERVICE = 'test.testPythonSDK.testService'
+TEST_SERVICE_PACKAGE = 'test.testPythonSDK'
+TEST_SERVICE_NAME = 'testService'
+TEST_SERVICE = f'{TEST_SERVICE_PACKAGE}.{TEST_SERVICE_NAME}'
 TEST_SERVICE_EVENT = 'testPythonServiceEvent'
-TEST_SERVICE_EVENT_IMPL_TOPIC = f'/topics/{TEST_SERVICE}/{TEST_SERVICE_EVENT}'
+TEST_SERVICE_EVENT_IMPL_TOPIC = f'/topics/{TEST_SERVICE_PACKAGE}/services/{TEST_SERVICE_NAME}/{TEST_SERVICE_EVENT}'
 TEST_SERVICE_EVENT_CONTENTS = {'name': 'outbound event', 'val': {'breed': 'English Springer'}}
 TEST_SERVICE_EVENT_CONTENTS_VAIL = '{name: "outbound event", val: {breed: "English Springer"}}'
 
@@ -89,8 +91,7 @@ Event.ack()"""}
             assert vr.is_success
 
             service = {'name':  TEST_SERVICE,
-                       'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND',
-                                                           'implementingEventPath': TEST_SERVICE_EVENT_IMPL_TOPIC
+                       'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND'
                                                            }
                                       }
                        }
@@ -583,9 +584,9 @@ Event.ack()"""}
         errs = vr.errors
         assert isinstance(errs, list)
         ve = errs[0]
-        assert ve.message == "The requested instance ('[name:foo]') of the k8sclusters resource could not be found."
+        assert ve.message == "The requested instance ('{name=foo}') of the k8sclusters resource could not be found."
         assert ve.code == 'io.vantiq.resource.not.found'
-        assert ve.params == ['k8sclusters', '[name:foo]']
+        assert ve.params == ['k8sclusters', '{name=foo}']
 
         vr = await client.select(VantiqResources.K8S_CLUSTERS)
         assert isinstance(vr, VantiqResponse)
@@ -626,7 +627,7 @@ Event.ack()"""}
             assert vr.count == old_count
 
         now = datetime.now()
-        dt = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+        dt = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
         assert isinstance(dt, str)
         embedded = {'a': 1, 'b': 2}
@@ -742,7 +743,8 @@ Event.ack()"""}
         user_rec = None
         for urec in body:
             pref_name = urec['username']
-            if pref_name == _username:
+            # The stored username is always pure lowercase, but the provided username is case-insensitive
+            if pref_name == _username.lower():
                 user_rec = urec
         if user_rec is None:
             # If there's going to be an error, dump some diagnostics
