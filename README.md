@@ -103,11 +103,11 @@ or
 in a windows environment.
 
 The tests run will run a mocked version. To execute tests against a _live_ server,
-define the following gradle properties:
+define the following gradle properties in your ~/.gradle/gradle.properties file:
 
 ```properties
 # Python project values
-TestVantiqServer=<Vantiq server url>
+TestVantiqServer=<Vantiq server url> # Only do the base URL. Ex http://localhost:8080/
 TestAccessToken=<access token from that Vantiq system>
 TestVantiqUsername=<Vantiq user name>
 TestVantiqPassword=<Password for that Vantiq user>
