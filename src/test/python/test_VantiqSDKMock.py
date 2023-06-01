@@ -532,18 +532,18 @@ class TestMockedConnection:
 
         mocked.get(f'/api/v1/resources/k8sclusters/foo', status=404,
                    body=json.dumps({'code': 'io.vantiq.resource.not.found',
-                                    'message': "The requested instance ('[name:foo]') of the k8sclusters resource"
+                                    'message': "The requested instance ('{name=foo}') of the k8sclusters resource"
                                                " could not be found.",
-                                    'params': ['k8sclusters', '[name:foo]']}))
+                                    'params': ['k8sclusters', '{name=foo}']}))
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, 'foo')
         assert isinstance(vr, VantiqResponse)
         assert not vr.is_success
         errs = vr.errors
         assert isinstance(errs, list)
         ve = errs[0]
-        assert ve.message == "The requested instance ('[name:foo]') of the k8sclusters resource could not be found."
+        assert ve.message == "The requested instance ('{name=foo}') of the k8sclusters resource could not be found."
         assert ve.code == 'io.vantiq.resource.not.found'
-        assert ve.params == ['k8sclusters', '[name:foo]']
+        assert ve.params == ['k8sclusters', '{name=foo}']
 
         mocked.get('/api/v1/resources/k8sclusters', status=200, body=json.dumps([]))
 
