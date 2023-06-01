@@ -37,10 +37,11 @@ TEST_RELIABLE_TOPIC = '/test/pythonsdk/reliabletopic'
 TEST_PROCEDURE = 'pythonsdk.echo'
 TEST_TYPE = 'TestType'
 
-TEST_SERVICE = 'test.testPythonSDK.testService'
-TEST_SERVICE_TOPIC = 'test.testPythonSDK/services/testService'
+TEST_SERVICE_PACKAGE = 'test.testPythonSDK'
+TEST_SERVICE_NAME = 'testService'
+TEST_SERVICE = f'{TEST_SERVICE_PACKAGE}.{TEST_SERVICE_NAME}'
 TEST_SERVICE_EVENT = 'testPythonServiceEvent'
-TEST_SERVICE_EVENT_IMPL_TOPIC = f'/topics/{TEST_SERVICE_TOPIC}/{TEST_SERVICE_EVENT}'
+TEST_SERVICE_EVENT_IMPL_TOPIC = f'/topics/{TEST_SERVICE_PACKAGE}/services/{TEST_SERVICE_NAME}/{TEST_SERVICE_EVENT}'
 TEST_SERVICE_EVENT_CONTENTS = {'name': 'outbound event', 'val': {'breed': 'English Springer'}}
 TEST_SERVICE_EVENT_CONTENTS_VAIL = '{name: "outbound event", val: {breed: "English Springer"}}'
 
@@ -91,7 +92,7 @@ Event.ack()"""}
 
             service = {'name':  TEST_SERVICE,
                        'eventTypes': {TEST_SERVICE_EVENT: {'direction': 'OUTBOUND'}}
-                       }
+                      }
             vr = await client.insert(VantiqResources.SERVICES, service)
             assert vr.is_success
 
@@ -637,7 +638,9 @@ Event.ack()"""}
             assert vr.count == old_count
 
         now = datetime.now()
-        dt = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        # Server now shows millis, but strftime only does whole seconds or micros.
+        # Give a made-up millis value for the server to parrot
+        dt = now.strftime('%Y-%m-%dT%H:%M:%S.123Z')
 
         assert isinstance(dt, str)
         embedded = {'a': 1, 'b': 2}
@@ -753,7 +756,8 @@ Event.ack()"""}
         user_rec = None
         for urec in body:
             pref_name = urec['username']
-            if pref_name == _username:
+            # The stored username is always pure lowercase, but the provided username is case-insensitive
+            if pref_name == _username.lower():
                 user_rec = urec
         if user_rec is None:
             # If there's going to be an error, dump some diagnostics
