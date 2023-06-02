@@ -184,7 +184,7 @@ Event.ack()"""}
         if self.message_checker:
             self.message_checker(what, details)
         else:
-            print('Np message checker in place for ', what, '::', details)
+            print('No message checker in place for ', what, '::', details)
 
     async def check_subscription_ops(self, client: Vantiq, prestart_transport: bool):
         if prestart_transport:
