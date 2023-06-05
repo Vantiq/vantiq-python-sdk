@@ -121,6 +121,7 @@ Event.ack()"""}
         self.callbacks = []
         self.message_checker = None
         self.last_message: Union[dict, None] = None
+        self.looking_for = None
 
     def dump_result(self, tag: str, vr: VantiqResponse):
         print(f'{tag} response: ', str(vr))
@@ -169,7 +170,12 @@ Event.ack()"""}
         assert what in ['connect', 'message']
         if what == 'message':
             assert msg['status'] < 400
-        self.last_message = msg
+        # Only save messages of interest
+        if self.looking_for is None or self.looking_for == what:
+            print('Saving message:', msg)
+            self.last_message = msg
+        else:
+            print('Not saving message: looking for', self.looking_for, ', found: ', what)
 
     async def subscriber_callback(self, what: str, details: dict) -> None:
         print('Subscriber got a callback -- what: {0}, details: {1}'.format(what, details))
@@ -177,11 +183,14 @@ Event.ack()"""}
         self.callbacks.append(what)
         if self.message_checker:
             self.message_checker(what, details)
+        else:
+            print('No message checker in place for ', what, '::', details)
 
     async def check_subscription_ops(self, client: Vantiq, prestart_transport: bool):
         if prestart_transport:
             await client.start_subscriber_transport()
 
+        self.message_checker = self.check_callback_serviceevent_publish
         svc_event_id = f'{TEST_SERVICE}/{TEST_SERVICE_EVENT}'
         vr = await client.subscribe(VantiqResources.SERVICES, svc_event_id,
                                     None, self.subscriber_callback)
@@ -190,7 +199,6 @@ Event.ack()"""}
         assert vr.is_success
         orig_count = self.callback_count
         await asyncio.sleep(0.5)
-        self.message_checker = self.check_callback_serviceevent_publish
 
         vr = await client.execute(f'{TEST_SERVICE}.publishToOutbound', {})
         self.dump_result('Publish Service Event Error', vr)
@@ -258,6 +266,8 @@ Event.ack()"""}
 
         self.message_checker = self.check_callback_topic_publish_saveit
 
+        self.last_message = None
+        self.looking_for = 'connect'
         vr = await client.subscribe(VantiqResources.TOPICS, TEST_RELIABLE_TOPIC, None, self.subscriber_callback, params)
         self.dump_result('Subscribe to reliable', vr)
         assert vr.is_success
@@ -286,12 +296,15 @@ Event.ack()"""}
         body = {"ts": dt, 'id': f'ACK-{dt}'}
 
         self.last_message = None
+        self.looking_for = 'message'
+
         vr = await client.publish(VantiqResources.TOPICS, TEST_RELIABLE_TOPIC, body)
         assert vr.is_success
         while self.last_message is None:
             await asyncio.sleep(0.1)
 
         last = self.last_message
+        assert last is not None
         assert 'body' in last
         # noinspection PyUnresolvedReferences
         assert last['headers']['X-Request-Id'] == '/topics' + TEST_RELIABLE_TOPIC
