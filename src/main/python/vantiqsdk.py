@@ -32,11 +32,10 @@ import base64
 import json
 import logging
 from logging import Logger
-from typing import Awaitable, Callable, List, Union, Dict, Optional
+from typing import Awaitable, Callable, List, Union, Dict
 
 import aiohttp
 import websockets
-from websockets.client import ClientConnection
 
 _MIMETYPE_JSON = 'application/json'
 _MIMETYPE_TEXT_PREFIX = 'text/'
@@ -1330,7 +1329,7 @@ class _VantiqSubscriber:
         self.parent = parent
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
-        self.connection: Optional[ClientConnection] = None
+        self.connection: websockets.ClientProtocol = None
         self.url = None
         self._vlog = logging.getLogger(self.__class__.__name__)
         self.subscriptions: Dict[str, bool] = {}
