@@ -12,6 +12,7 @@
 bin/
 gen/
 out/
+pyproject.toml
 
 # Gradle files
 .gradle/
@@ -49,7 +50,7 @@ captures/
 # Python infrastructure
 **/__pycache__
 **/*.egg-info/*
-./dist
+dist/
 
 # Test specific artifacts
 Vantiq.log
