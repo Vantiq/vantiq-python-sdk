@@ -12,7 +12,7 @@ ext {
     }
 
     if (!project.rootProject.hasProperty('vantiqSdkVersion')) {
-        vantiqSdkVersion = '1.1.3'
+        vantiqSdkVersion = '1.1.4'
     }
 
     // See if we are using virtualenvwrapper and if so put the virtualenv in the WORKON_HOME
@@ -115,11 +115,9 @@ tasks.register('generateProjectCfg', Copy) {
 task build_distribution(type: PythonTask) {
     module = 'build'
 }
-
 build_distribution.dependsOn generateProjectCfg
 
-task test() {}
-
+tasks.register('test')
 task copyTestResources() {
     doLast {
         copy {
@@ -143,9 +141,17 @@ task publish(type: PythonTask) {
 }
 
 publish.mustRunAfter build_distribution
-publish.dependsOn generateProjectCfg
+publish.dependsOn build_distribution
 clean.dependsOn pyclean
-assemble.finalizedBy build_distribution
 build.finalizedBy test
 test.finalizedBy pytest
 pytest.dependsOn copyTestResources
+
+// Make every other task run after the generateProjectCfg task.  This way, they run first and the
+// gradle dependency analyzer remains happy.
+// matching() and all() are "live" so any tasks declared after this line will also depend on generate*
+tasks.matching { !it.name.startsWith('generate')
+        && it.name != 'pyclean'
+        && it.name != 'clean' }.configureEach { task ->
+    task.mustRunAfter generateProjectCfg
+}
