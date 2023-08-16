@@ -31,12 +31,12 @@ import asyncio
 import base64
 import json
 import logging
-from logging import Logger, config
-from os.path import exists
-from typing import Awaitable, Callable, List, Union, Dict
+from logging import Logger
+from typing import Awaitable, Callable, List, Union, Dict, Optional
 
 import aiohttp
 import websockets
+from websockets.client import ClientConnection
 
 _MIMETYPE_JSON = 'application/json'
 _MIMETYPE_TEXT_PREFIX = 'text/'
@@ -136,6 +136,7 @@ class VantiqResources:
     IMAGES = 'system.images'
     K8S_CLUSTERS = 'system.k8sclusters'
     K8S_INSTALLATIONS = 'system.k8sinstallations'
+    LLMS = 'system.llms'
     NAMESPACES = 'system.namespaces'
     ORGANIZATIONS = 'system.organizations'
     PROFILES = 'system.profiles'
@@ -143,6 +144,7 @@ class VantiqResources:
     RULES = 'system.rules'
     SCHEDULED_EVENTS = 'system.scheduledevents'
     SECRETS = 'system.secrets'
+    SEMANTIC_INDEXES = 'system.semanticindexes'
     SERVICES = 'system.services'
     SITUATIONS = 'system.situations'
     SOURCES = 'system.sources'
@@ -350,8 +352,8 @@ class Vantiq:
     This class consists of operations that can be performed using the Vantiq system. More information about
     these operations can be found in the Vantiq Resource Reference Guide and the Vantiq API Reference Guide.
 
-    Logging for this class can be configured using a `logging.ini` file that is present in the working directory
-    of the running program.
+    Logging for this class is done through a standard Python logger named "Vantiq".  It is assumed that the
+    client of this library will configure the logger as desired.
 
     The Vantiq object instance can be used as a context manager.
         async with Vantiq(<server url>) as client:
@@ -393,10 +395,6 @@ class Vantiq:
 
 
         """
-        if exists('logger.ini'):
-            logging.config.fileConfig('logger.ini', disable_existing_loggers=False)
-        else:
-            print('No logger.ini file found.')
         self._vlog: Logger = logging.getLogger(self.__class__.__name__)
 
         if server.endswith('/'):
@@ -1332,7 +1330,7 @@ class _VantiqSubscriber:
         self.parent = parent
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
-        self.connection: websockets.ClientConnection = None
+        self.connection: Optional[ClientConnection] = None
         self.url = None
         self._vlog = logging.getLogger(self.__class__.__name__)
         self.subscriptions: Dict[str, bool] = {}

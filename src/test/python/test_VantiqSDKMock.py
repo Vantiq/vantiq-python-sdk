@@ -4,9 +4,12 @@ __license__ = "MIT License"
 __email__ = "support@vantiq.com"
 
 import asyncio
+import logging
+from logging import config
 from datetime import datetime
 import json
 import traceback
+from os.path import exists
 from typing import Union
 import urllib.parse
 
@@ -29,6 +32,11 @@ SERVICE_EVENT = 'testService/testEvent'
 
 STANDARD_COUNT_PROPS = '["_id"]'
 
+if exists('logger.ini'):
+    logging.config.fileConfig('logger.ini', disable_existing_loggers=False)
+else:
+    print('No logger.ini file found.')
+
 
 class TestMockedConnection:
 
@@ -48,7 +56,7 @@ class TestMockedConnection:
 
     def dump_result(self, tag: str, vr: VantiqResponse):
         print(f'{tag} response: ', str(vr))
-        
+
     def process_chunk(self, doc_url: str, length: int, chunk: bytes) -> None:
         assert length > 0
         assert len(chunk) == length
@@ -316,7 +324,7 @@ class TestMockedConnection:
             if ret_val != '':
                 ret_val += '&'
             ret_val += f'props={encoded_props}'
-        if option_part :
+        if option_part:
             for k, v in option_part.items():
                 if ret_val != '':
                     ret_val += '&'
@@ -363,7 +371,7 @@ class TestMockedConnection:
         assert row['resourceName'] == VantiqResources.unqualified_name(VantiqResources.NAMESPACES)
 
         try:
-            query_part =\
+            query_part = \
                 self.mock_query_part(props_part='["name", "resourceName"]',
                                      where_part='{"$or": [{"name": "ArsType"}, {"name": "ArsTensorFlowModel"}]}',
                                      sort_part='{"name": -1}', limit_part=1,
@@ -579,7 +587,8 @@ class TestMockedConnection:
 
     async def check_other_operations(self, mocked, client: Vantiq):
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200, headers={'X-Total-Count': '0'})
+        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
+                   headers={'X-Total-Count': '0'})
 
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
@@ -614,7 +623,8 @@ class TestMockedConnection:
         await asyncio.sleep(0.500)  # let event hit...
 
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200, headers={'X-Total-Count': '1'})
+        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
+                   headers={'X-Total-Count': '1'})
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
         self.dump_result('Count error', vr)

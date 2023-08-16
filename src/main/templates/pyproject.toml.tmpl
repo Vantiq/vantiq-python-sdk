@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vantiqsdk"
+version = "${vantiqSdkVersion}"
+description = "SDK for working with the Vantiq system"
+authors = [
+    { name = "Vantiq", email = "fcarter@vantiq.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dynamic = [
+    "readme",
+]
+requires-python = ">=3.8"
+dependencies = [
+${vantiqSdkDeps}
+]
+
+[project.license]
+text = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/vantiq/vantiq-python-sdk"
+
+[tool.setuptools]
+py-modules = [
+    "vantiqsdk",
+]
+include-package-data = false
+
+[tool.setuptools.package-dir]
+"" = "src/main/python"
+
+[tool.setuptools.dynamic.readme]
+file = [
+    "README.md",
+    "LICENSE",
+]
+content-type = "text/markdown"

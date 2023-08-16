@@ -12,6 +12,7 @@
 bin/
 gen/
 out/
+pyproject.toml
 
 # Gradle files
 .gradle/

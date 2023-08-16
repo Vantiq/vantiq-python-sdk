@@ -1,0 +1,12 @@
+# For testing
+pytest
+pytest-html
+pytest-asyncio
+pytest-timeout
+aiofiles
+aioresponses
+
+# For build
+pip-tools
+build
+twine
