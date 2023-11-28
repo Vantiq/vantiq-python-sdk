@@ -1,2 +1,2 @@
-websockets
-aiohttp
+websockets>=12.0
+aiohttp>=3.8.6

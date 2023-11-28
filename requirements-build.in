@@ -4,7 +4,7 @@ pytest-html
 pytest-asyncio
 pytest-timeout
 aiofiles
-aioresponses
+aioresponses>=0.7.6
 
 # For build
 pip-tools
