@@ -74,7 +74,7 @@ python {
     }
     // copy virtualenv instead of symlink (when created)
     envCopy = false
-    pip 'pip:23.1.2'
+    pip 'pip:23.3.1'
 }
 
 tasks.register('generateRequirements', PythonTask) {
