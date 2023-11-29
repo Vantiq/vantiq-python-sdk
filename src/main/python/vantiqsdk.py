@@ -63,7 +63,8 @@ class _RestClient:
         await self._con.close()
 
     async def connect(self):
-        self._con = aiohttp.ClientSession(base_url=self._url)
+        # set trust_env to True to enable env variable settings for network proxy support
+        self._con = aiohttp.ClientSession(base_url=self._url, trust_env=True)
 
     async def close(self):
         await self._con.close()
