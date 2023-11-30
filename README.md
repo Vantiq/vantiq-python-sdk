@@ -18,7 +18,7 @@ Note: depending on your local environment, you may need to use `pip3`
 instead of `pip`, or whatever is appropriate to install into your
 virtual environment.
 
-The Vantiq SDK for Python requires Python version 3.8 or better.
+The Vantiq SDK for Python requires Python version 3.10 or better.
 It is built using `asyncio`, `aiohttp`, and `websockets`. In the documentation
 that follows, methods marked as _Async_ must be awaited. For more information
 about `asyncio` and `await`, please see the 

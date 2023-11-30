@@ -12,7 +12,7 @@ ext {
     }
 
     if (!project.rootProject.hasProperty('vantiqSdkVersion')) {
-        vantiqSdkVersion = '1.1.4'
+        vantiqSdkVersion = '1.1.5'
     }
 
     // See if we are using virtualenvwrapper and if so put the virtualenv in the WORKON_HOME
@@ -43,7 +43,7 @@ python {
     environment = [:]
 
     // minimal required python version (m.m.m)
-    minPythonVersion = '3.8'
+    minPythonVersion = '3.10'
     // minimal required pip version (m.m.m)
     minPipVersion = '9'
 
@@ -74,6 +74,7 @@ python {
     }
     // copy virtualenv instead of symlink (when created)
     envCopy = false
+    pip 'pip:23.3.1'
 }
 
 tasks.register('generateRequirements', PythonTask) {
