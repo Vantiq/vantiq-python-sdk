@@ -1,5 +1,10 @@
-websockets>=12.0
-aiohttp>=3.9.0
-urllib3>=2.0.7
-colorama>=0.4.6
-pywin32-ctypes>=0.2.2 ;  platform_system == 'Windows'
+# The contents of this file are used to determine the "hard" dependencies of the library.
+# Given this we want to be as "flexible" as possible and avoid pinning versions here (the
+# tooling will do that for us when it generates requirements.txt).  If you find that you
+# need to update a version to resolve a CVE, this can usually be done by regenerating the
+# requirements using the "upgrade" option.  If you really just want to hot fix a version
+# then you can do that here, but please make sure to document why you are doing it.
+# Also avoid putting any libraries that are only used by the build system (directly or
+# indirectly).  Those belong in "requirements-build.in".
+websockets
+aiohttp

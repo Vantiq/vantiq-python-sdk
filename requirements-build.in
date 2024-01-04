@@ -10,3 +10,5 @@ aioresponses>=0.7.6
 pip-tools
 build
 twine
+pywin32-ctypes ;  platform_system == 'Windows'
+colorama ;  platform_system == 'Windows'
