@@ -605,8 +605,6 @@ Event.ack()"""}
         rows = vr.body
         assert len(rows) == 0
 
-        await client.refresh()
-
         vr = await client.select('system.junkola')
         assert isinstance(vr, VantiqResponse)
         assert not vr.is_success
@@ -726,7 +724,7 @@ Event.ack()"""}
 
     @staticmethod
     def check_test_conditions():
-        if _server_url is None or _access_token is None or (_username is None and _password is None):
+        if _server_url is None or (_access_token is None and (_username is None and _password is None)):
             pytest.skip('Need access to Vantiq server.')
 
     async def check_nsusers_ops(self, client: Vantiq):
@@ -753,16 +751,17 @@ Event.ack()"""}
         assert vr.is_success
         body = vr.body
         assert isinstance(body, list)
-        user_rec = None
-        for urec in body:
-            pref_name = urec['username']
-            # The stored username is always pure lowercase, but the provided username is case-insensitive
-            if pref_name == _username.lower():
-                user_rec = urec
-        if user_rec is None:
-            # If there's going to be an error, dump some diagnostics
-            print('Users: ', body)
-        assert user_rec
+        if client.get_username() is not None:
+            user_rec = None
+            for urec in body:
+                pref_name = urec['username']
+                # The stored username is always pure lowercase, but the provided username is case-insensitive
+                if pref_name == client.get_username().lower():
+                    user_rec = urec
+            if user_rec is None:
+                # If there's going to be an error, dump some diagnostics
+                print('Users: ', body)
+                assert user_rec
 
     @pytest.mark.timeout(10)
     @pytest.mark.asyncio
@@ -771,6 +770,8 @@ Event.ack()"""}
         global _username
         global _password
 
+        if _username is None or _password is None:
+            pytest.skip('Missing username or password so test cannot be performed')
         self.check_test_conditions()
 
         v = Vantiq(_server_url, '1')
@@ -803,23 +804,20 @@ Event.ack()"""}
         global _server_url
         global _access_token
 
+        if _access_token is None:
+            pytest.skip('Missing access token so test cannot be performed')
+
         self.check_test_conditions()
 
         v = Vantiq(_server_url, '1')
         await v.connect()
         await v.set_access_token(_access_token)
-        v.set_username(_username)
 
         assert v.is_authenticated()
         assert v.get_id_token() is None  # In this case, we haven't really talked to the server yet, so no id token.
         assert v.get_access_token()
-        assert v.get_username()
-        assert v.get_username() == _username
+        assert v.get_access_token() == _access_token
 
-        await v.refresh()
-        assert v.is_authenticated()
-        assert v.get_id_token()
-        assert v.get_access_token()
         await v.close()
 
         # Check that we've dumped connection information
@@ -837,10 +835,10 @@ Event.ack()"""}
     async def test_crud_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            if _username:
-                await client.authenticate(_username, _password)
-            else:
+            if _access_token:
                 await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
 
             print('Setup test environment')
             await self.setup_test_env(client)
@@ -865,10 +863,10 @@ Event.ack()"""}
     async def test_other_ops_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            if _username:
-                await client.authenticate(_username, _password)
-            else:
+            if _access_token:
                 await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
 
             print('Setup test environment')
             await self.setup_test_env(client)
@@ -895,7 +893,10 @@ Event.ack()"""}
 
         # Check with CTM style
         async with Vantiq(_server_url, '1') as client:
-            await client.set_access_token(_access_token)
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
             await self.check_documentesque_operation(client)
 
     @pytest.mark.asyncio
@@ -904,7 +905,10 @@ Event.ack()"""}
         self.check_test_conditions()
 
         client = Vantiq(_server_url)
-        await client.authenticate(_username, _password)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
         await self.check_documentesque_operation(client, False)
         await client.close()
 
@@ -913,7 +917,10 @@ Event.ack()"""}
     async def test_subscriptions_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            await client.authenticate(_username, _password)
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
             await self.check_subscription_ops(client, False)
 
     @pytest.mark.asyncio
@@ -921,7 +928,10 @@ Event.ack()"""}
     async def test_subscriptions_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
-        await client.authenticate(_username, _password)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
         await self.check_subscription_ops(client, False)
         await client.close()
 
@@ -930,7 +940,10 @@ Event.ack()"""}
     async def test_subscriptions_as_ctm_prestart(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            await client.authenticate(_username, _password)
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
             await self.check_subscription_ops(client, True)
 
     @pytest.mark.asyncio
@@ -938,7 +951,10 @@ Event.ack()"""}
     async def test_subscriptions_as_plain_client_prestart(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
-        await client.authenticate(_username, _password)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
         await self.check_subscription_ops(client, True)
         await client.close()
 
@@ -947,7 +963,10 @@ Event.ack()"""}
     async def test_namespace_users_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
-            await client.authenticate(_username, _password)
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
             await self.check_nsusers_ops(client)
 
     @pytest.mark.asyncio
@@ -955,6 +974,9 @@ Event.ack()"""}
     async def test_namespace_users_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
-        await client.authenticate(_username, _password)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
         await self.check_nsusers_ops(client)
         await client.close()
