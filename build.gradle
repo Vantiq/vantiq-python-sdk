@@ -151,6 +151,7 @@ task publish(type: PythonTask) {
 
 publish.mustRunAfter build_distribution
 publish.dependsOn build_distribution
+assemble.finalizedBy build_distribution
 clean.dependsOn pyclean
 build.finalizedBy test
 test.finalizedBy pytest
