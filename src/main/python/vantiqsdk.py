@@ -404,6 +404,7 @@ class Vantiq:
         self._api_version = api_version if api_version else '1'
         self._is_authenticated = False
         self._username = None
+        self._target_namespace = None
         self._access_token = None
         self._id_token = None
         self._auth_header = None
@@ -472,6 +473,14 @@ class Vantiq:
     def get_access_token(self) -> str:
         """Returns the access token currently in use."""
         return self._access_token
+
+    def set_target_namespace(self, namespace: str) -> None:
+        """Set the target namespace to be used to access the Vantiq server"""
+        self._target_namespace = namespace
+
+    def target_namespace(self) -> str:
+        """Returns the target namespace currently in use."""
+        return self._target_namespace
 
     def set_username(self, username: str) -> None:
         """Set the username to be used to access the Vantiq server"""
@@ -553,6 +562,7 @@ class Vantiq:
         self._id_token = None
         self._base_path = None
         self._auth_header = None
+        self._target_namespace = None
         self._username = None
         if self._subscriber:
             await self._subscriber.close()
@@ -594,12 +604,18 @@ class Vantiq:
                 params = []
             raise VantiqException(code, message, params)
 
+    def _get_auth_headers(self) -> dict:
+        headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
+        if self._target_namespace is not None:
+            headers['X-Target-Namespace'] = self._target_namespace
+        return headers
+
     async def _perform_operation(self, operation: str, method: str, path: str,
                                  query_params: Union[dict, None], is_streaming: bool,
                                  instance: Union[dict, None] = None) -> VantiqResponse:
         if self._is_authenticated:
             try:
-                headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
+                headers = self._get_auth_headers()
                 if instance is None:
                     # When no parameters are passed at all, we get 404's back.  So None as parameters == {}.
                     instance = {}
@@ -924,7 +940,7 @@ class Vantiq:
                         ...
         """
         url = path
-        headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
+        headers = self._get_auth_headers()
         try:
             resp = await self._connection.download(url, headers)
             ret_val = VantiqResponse(resp.ok, resp.status, resp.content_type)
@@ -1001,7 +1017,7 @@ class Vantiq:
             return VantiqResponse.from_error(ve)
 
         path = self._build_path(resource, None)
-        headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
+        headers = self._get_auth_headers()
 
         try:
             resp = await self._connection.upload(path, headers, content_type, filename, doc_name, inmem)
