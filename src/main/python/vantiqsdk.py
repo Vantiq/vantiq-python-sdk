@@ -478,7 +478,7 @@ class Vantiq:
         """Set the target namespace to be used to access the Vantiq server"""
         self._target_namespace = namespace
 
-    def target_namespace(self) -> str:
+    def get_target_namespace(self) -> str:
         """Returns the target namespace currently in use."""
         return self._target_namespace
 
@@ -1343,7 +1343,7 @@ class _VantiqSubscriber:
     ERROR = 'error'
 
     def __init__(self, parent: Vantiq):
-        self.parent = parent
+        self.parent: Vantiq = parent
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
         self.connection: websockets.ClientProtocol = None
@@ -1458,6 +1458,8 @@ class _VantiqSubscriber:
                        'resourceName': 'events',
                        'resourceId': path,
                        'parameters': params}
+            if self.parent.get_target_namespace() is not None:
+                sub_msg['targetNamespace'] = self.parent.get_target_namespace()
             await self.connection.send(json.dumps(sub_msg))
             self._vlog.debug('Subscription request sent.')
 
@@ -1477,6 +1479,8 @@ class _VantiqSubscriber:
                   'subscriptionName': subscription_id, 'sequenceId': sequence_id, 'partitionId': partition_id}
         msg = {'op': 'acknowledge', 'resourceName': 'events', 'resourceId': request_id,
                'parameters': params}
+        if self.parent.get_target_namespace() is not None:
+            msg['targetNamespace'] = self.parent.get_target_namespace()
         raw = json.dumps(msg)
         await self.connection.send(raw)
 
