@@ -6,6 +6,9 @@ pytest-timeout
 aiofiles
 aioresponses>=0.7.6
 
+# Dependabot fix
+jinja2>=3.1.4
+
 # For build
 pip-tools
 build
