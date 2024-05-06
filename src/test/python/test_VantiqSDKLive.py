@@ -603,7 +603,7 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         rows = vr.body
-        assert len(rows) == 0
+        assert len(rows) == 1
 
         vr = await client.select('system.junkola')
         assert isinstance(vr, VantiqResponse)
