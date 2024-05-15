@@ -569,8 +569,8 @@ Acknowledge the receipt of a reliable message from reliable resources after crea
 ### Vantiq.register_subscriber\_on\_close()
 
 Register a callback to be called when the subscriber is closed. Useful for the subscriber to know that there's no
-longer any subscriber active (for whatever reason).  This could happen due to issues at the server side or the
-connetion between the client & server.
+longer any subscriber active (for whatever reason).  This could happen due to issues at the server side or with the
+connection between the client & server.
 
 #### Parameters:
 * _callback_ : Callable[[], Awaitable[None]]
