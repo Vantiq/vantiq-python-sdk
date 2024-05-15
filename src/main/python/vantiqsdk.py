@@ -474,11 +474,11 @@ class Vantiq:
         """Returns the access token currently in use."""
         return self._access_token
 
-    def set_target_namespace(self, namespace: str) -> None:
+    def set_target_namespace(self, namespace: Union[str, None]) -> None:
         """Set the target namespace to be used to access the Vantiq server"""
         self._target_namespace = namespace
 
-    def get_target_namespace(self) -> str:
+    def get_target_namespace(self) -> Union[str, None]:
         """Returns the target namespace currently in use."""
         return self._target_namespace
 
@@ -1238,7 +1238,8 @@ class Vantiq:
             return None
 
     async def subscribe(self, resource: str, resource_id: str, operation: Union[str, None],
-                        callback: Callable[[str, dict], Awaitable[None]], params: dict = None) -> VantiqResponse:
+                        callback: Callable[[str, dict], Awaitable[None]], params: Union[dict, None] = None,
+                        target_namespace: Union[str, None] = None) -> VantiqResponse:
         """(Async) Subscribe to an event from the Vantiq server.
 
         Subscribes to a specific topic, source, service, or type event.
@@ -1305,7 +1306,7 @@ class Vantiq:
         if self._subscriber is None:
             await self.start_subscriber_transport()
 
-        vr = await self._subscriber.subscribe(path, params, callback)
+        vr = await self._subscriber.subscribe(path, params, callback, target_namespace)
         return vr
 
     async def ack(self, request_id: str, subscription_id: str, msg: dict) -> None:
@@ -1336,6 +1337,15 @@ class Vantiq:
         await self._subscriber.ack(request_id, subscription_id, sequence_id, partition_id)
         return
 
+    def register_subscriber_on_close(self, callback: Callable[[], Awaitable[None]]):
+        """ Register a callback to be called when the subscriber is closed.
+
+        Parameters:
+            callback : Callable[[], Awaitable[None]]
+                The callback to be called when the subscriber is closed.
+        """
+        self._subscriber.on_close_handler = callback
+
 
 class _VantiqSubscriber:
     CONNECT = 'connect'
@@ -1352,6 +1362,7 @@ class _VantiqSubscriber:
         self.subscriptions: Dict[str, bool] = {}
         self.callbacks: Dict[str, Callable[[str, dict], Awaitable[None]]] = {}
         self.is_authenticated = False
+        self.on_close_handler: Callable[[], Awaitable[None]] = None
 
     def __str__(self):
         ret_val = f'VantiqSubscriber for {str(self.parent)}'
@@ -1417,6 +1428,10 @@ class _VantiqSubscriber:
                                             await callback(self.CONNECT, resp)
                                         elif request_id in self.callbacks.keys():
                                             callback = self.callbacks[request_id]
+                                            body = resp.get('body', None)
+                                            if body is not None and body.get('op', None) == 'unsubscribe':
+                                                self.subscriptions.pop(request_id)
+                                                self.callbacks.pop(request_id)
                                             await callback(self.MESSAGE, resp)
                         elif resp['status'] >= 400:
                             if not self.connected:
@@ -1437,10 +1452,12 @@ class _VantiqSubscriber:
                                 self._vlog.debug('Message received via subscription.')
                                 callback = self.callbacks[request_id]
                                 await callback(self.MESSAGE, resp)
-            self.connected = False
 
-    async def subscribe(self, path: str, params: dict,
-                        callback: Callable[[str, dict], Awaitable[None]]) -> VantiqResponse:
+            # Once we get here, any transient subscriptions will be gone, so we should reset our side as well
+            await self.unsubscribe_all()
+
+    async def subscribe(self, path: str, params: dict, callback: Callable[[str, dict], Awaitable[None]],
+                        target_namespace: Union[str, None] = None) -> VantiqResponse:
         if self.connected:
             if path in self.subscriptions.keys():
                 vr = VantiqResponse(False, 400, None)
@@ -1458,8 +1475,9 @@ class _VantiqSubscriber:
                        'resourceName': 'events',
                        'resourceId': path,
                        'parameters': params}
-            if self.parent.get_target_namespace() is not None:
-                sub_msg['targetNamespace'] = self.parent.get_target_namespace()
+            target_namespace = target_namespace or self.parent.get_target_namespace()
+            if target_namespace is not None:
+                sub_msg['targetNamespace'] = target_namespace
             await self.connection.send(json.dumps(sub_msg))
             self._vlog.debug('Subscription request sent.')
 
@@ -1494,3 +1512,5 @@ class _VantiqSubscriber:
         await self.connection.close()
         self.connection = None
         self.is_authenticated = False
+        if self.on_close_handler is not None:
+            await self.on_close_handler()
