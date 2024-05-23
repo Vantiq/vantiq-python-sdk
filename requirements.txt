@@ -113,7 +113,7 @@ pywin32-ctypes==0.2.2 ; platform_system == "Windows"
     #   keyring
 readme-renderer==42.0
     # via twine
-requests==2.31.0
+requests==2.32.0
     # via
     #   requests-toolbelt
     #   twine

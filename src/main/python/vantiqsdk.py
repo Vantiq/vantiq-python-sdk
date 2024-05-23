@@ -1276,6 +1276,8 @@ class Vantiq:
 
             params : dict
                 (optional) Parameters for the subscription. May be subscription dependent, but can usually be ignored.
+            target_namespace : str
+                (optional) The namespace in which to subscribe.  If not provided, the current namespace is used.
         Returns:
             VantiqResponse indicating the success of the operation.
 
@@ -1356,12 +1358,14 @@ class _VantiqSubscriber:
         self.parent: Vantiq = parent
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
+        # noinspection PyTypeChecker
         self.connection: websockets.ClientProtocol = None
         self.url = None
         self._vlog = logging.getLogger(self.__class__.__name__)
         self.subscriptions: Dict[str, bool] = {}
         self.callbacks: Dict[str, Callable[[str, dict], Awaitable[None]]] = {}
         self.is_authenticated = False
+        # noinspection PyTypeChecker
         self.on_close_handler: Callable[[], Awaitable[None]] = None
 
     def __str__(self):
@@ -1458,32 +1462,8 @@ class _VantiqSubscriber:
 
     async def subscribe(self, path: str, params: dict, callback: Callable[[str, dict], Awaitable[None]],
                         target_namespace: Union[str, None] = None) -> VantiqResponse:
-        if self.connected:
-            if path in self.subscriptions.keys():
-                vr = VantiqResponse(False, 400, None)
-                ve = VantiqError('io.vantiq.python.subscribed',
-                                 'A subscription for path {0} already exists.',
-                                 [path])
-                vr.errors = [ve]
-                return vr
-            self.callbacks[path] = callback
-            self.subscriptions[path] = False  # Will be set to true when the server responds
-            if params is None:
-                params = {}
-            params['requestId'] = path
-            sub_msg = {'op': 'subscribe',
-                       'resourceName': 'events',
-                       'resourceId': path,
-                       'parameters': params}
-            target_namespace = target_namespace or self.parent.get_target_namespace()
-            if target_namespace is not None:
-                sub_msg['targetNamespace'] = target_namespace
-            await self.connection.send(json.dumps(sub_msg))
-            self._vlog.debug('Subscription request sent.')
-
-            vr = VantiqResponse(True, 204, None)
-            return vr
-        else:
+        # If we aren't connected, complain
+        if not self.connected:
             self._vlog.error('No transport for subscriptions established.')
             vr = VantiqResponse(False, 400, None)
             ve = VantiqError('io.vantiq.python.notransport',
@@ -1491,6 +1471,35 @@ class _VantiqSubscriber:
                              [])
             vr.errors = [ve]
             return vr
+
+        # Construct the request id using the path and (optional) target namespace
+        target_namespace = target_namespace or self.parent.get_target_namespace()
+        request_id = path
+        if target_namespace is not None:
+            request_id += '@' + target_namespace
+
+        if request_id in self.subscriptions.keys():
+            vr = VantiqResponse(False, 400, None)
+            ve = VantiqError('io.vantiq.python.subscribed',
+                             'A subscription for path {0} already exists for ns {1}.',
+                             [path, target_namespace or "current"])
+            vr.errors = [ve]
+            return vr
+        self.callbacks[request_id] = callback
+        self.subscriptions[request_id] = False  # Will be set to true when the server responds
+        if params is None:
+            params = {}
+        params['requestId'] = request_id
+        sub_msg = {'op': 'subscribe',
+                   'resourceName': 'events',
+                   'resourceId': path,
+                   'parameters': params}
+        if target_namespace is not None:
+            sub_msg['targetNamespace'] = target_namespace
+        # noinspection PyUnresolvedReferences
+        await self.connection.send(json.dumps(sub_msg))
+        self._vlog.debug('Subscription request sent.')
+        return VantiqResponse(True, 204, None)
 
     async def ack(self, request_id: str, subscription_id: str, sequence_id: float, partition_id: float):
         params = {'requestId': request_id,
@@ -1500,6 +1509,7 @@ class _VantiqSubscriber:
         if self.parent.get_target_namespace() is not None:
             msg['targetNamespace'] = self.parent.get_target_namespace()
         raw = json.dumps(msg)
+        # noinspection PyUnresolvedReferences
         await self.connection.send(raw)
 
     async def unsubscribe_all(self):
@@ -1509,6 +1519,7 @@ class _VantiqSubscriber:
 
     async def close(self):
         self.connected = False
+        # noinspection PyUnresolvedReferences
         await self.connection.close()
         self.connection = None
         self.is_authenticated = False
