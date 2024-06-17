@@ -8,3 +8,4 @@
 # indirectly).  Those belong in "requirements-build.in".
 websockets
 aiohttp
+urllib3>=2.2.2
