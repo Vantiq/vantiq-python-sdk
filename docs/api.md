@@ -133,7 +133,7 @@ Create a Vantiq client object.
 #### Parameters
 
 * _server_ : str -- URL String at which to find the Vantiq Server
-* _api_version_ : str (optional) -- Version of the API to uwe. Defaults to '1'
+* _api_version_ : str (optional) -- Version of the API to use. Defaults to '1'
 
 #### Returns
     Vantiq object with which to interact with the Vantiq system.
