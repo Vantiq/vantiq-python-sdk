@@ -6,7 +6,9 @@
 #
 aiofiles==23.2.1
     # via -r requirements-build.in
-aiohttp==3.9.5
+aiohappyeyeballs==2.3.5
+    # via aiohttp
+aiohttp==3.10.2
     # via
     #   -r requirements-sdk.in
     #   aioresponses
@@ -113,7 +115,7 @@ pywin32-ctypes==0.2.2 ; platform_system == "Windows"
     #   keyring
 readme-renderer==42.0
     # via twine
-requests==2.32.0
+requests==2.32.3
     # via
     #   requests-toolbelt
     #   twine
@@ -123,8 +125,10 @@ rfc3986==2.0.0
     # via twine
 rich==13.7.0
     # via twine
-setuptools==69.5.1
-    # via pip-tools
+setuptools==72.1.0
+    # via
+    #   -r requirements-build.in
+    #   pip-tools
 tomli==2.0.1
     # via
     #   build
@@ -143,5 +147,7 @@ wheel==0.42.0
     # via pip-tools
 yarl==1.9.3
     # via aiohttp
-zipp==3.17.0
-    # via importlib-metadata
+zipp==3.19.2
+    # via
+    #   -r requirements-build.in
+    #   importlib-metadata
