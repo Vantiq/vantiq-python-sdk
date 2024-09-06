@@ -12,7 +12,7 @@ ext {
     }
 
     if (!project.rootProject.hasProperty('vantiqSdkVersion')) {
-        vantiqSdkVersion = '1.3.5'
+        vantiqSdkVersion = '1.3.6'
     }
 
     // See if we are using virtualenvwrapper and if so put the virtualenv in the WORKON_HOME
