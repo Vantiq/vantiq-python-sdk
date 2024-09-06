@@ -1392,6 +1392,17 @@ class _VantiqSubscriber:
             async with websockets.connect(uri=self.url,
                                           ping_interval=20 if do_pings else None,
                                           ping_timeout=20 if do_pings else None) as websocket:
+                # Set up universal close handler.  This works whether the close is "expected" or not.
+                async def __handle_close():
+                    # Wait for the socket to be closed
+                    await websocket.wait_closed()
+
+                    # Once we get here, any transient subscriptions will be gone, so we should reset our side as well
+                    await self.unsubscribe_all()
+
+                # noinspection PyAsyncCall
+                asyncio.create_task(__handle_close())
+
                 if not self.connected:
                     auth_msg = {
                         'op': 'validate',
@@ -1457,9 +1468,6 @@ class _VantiqSubscriber:
                                 callback = self.callbacks[request_id]
                                 await callback(self.MESSAGE, resp)
 
-            # Once we get here, any transient subscriptions will be gone, so we should reset our side as well
-            await self.unsubscribe_all()
-
     async def subscribe(self, path: str, params: dict, callback: Callable[[str, dict], Awaitable[None]],
                         target_namespace: Union[str, None] = None) -> VantiqResponse:
         # If we aren't connected, complain
@@ -1478,7 +1486,8 @@ class _VantiqSubscriber:
         if target_namespace is not None:
             request_id += '@' + target_namespace
 
-        if request_id in self.subscriptions.keys():
+        # Check to see if we already have a subscription for this path
+        if self.subscriptions.get(request_id, False):
             vr = VantiqResponse(False, 400, None)
             ve = VantiqError('io.vantiq.python.subscribed',
                              'A subscription for path {0} already exists for ns {1}.',
