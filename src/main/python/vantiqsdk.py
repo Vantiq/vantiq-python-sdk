@@ -1392,81 +1392,74 @@ class _VantiqSubscriber:
             async with websockets.connect(uri=self.url,
                                           ping_interval=20 if do_pings else None,
                                           ping_timeout=20 if do_pings else None) as websocket:
-                # Set up universal close handler.  This works whether the close is "expected" or not.
-                async def __handle_close():
-                    # Wait for the socket to be closed
-                    await websocket.wait_closed()
+                try:
+                    if not self.connected:
+                        auth_msg = {
+                            'op': 'validate',
+                            'resourceName': 'system.credentials',
+                            'object': self.parent.get_access_token()
+                        }
+                        await websocket.send(json.dumps(auth_msg))
 
+                    # Read from the socket until it closes
+                    async for raw in websocket:
+                        # Decode the message
+                        resp = json.loads(raw)
+                        request_id = None
+                        if 'headers' in resp.keys():
+                            hdrs = resp['headers']
+                            if 'X-Request-Id' in hdrs.keys():
+                                request_id = hdrs['X-Request-Id']
+                        else:
+                            pass
+
+                        # Using request id, track back to request for which this is a response
+                        if 'status' in resp.keys():
+                            if resp['status'] == 200:
+                                if not self.is_authenticated:
+                                    self.connection = websocket
+                                    self.connected = True
+                                    self.is_authenticated = True
+                                    self.connected_future.set_result('OK')
+                                    self._vlog.debug('Authentication completed.')
+                                else:
+                                    if request_id:
+                                        if request_id in self.subscriptions.keys():
+                                            if not self.subscriptions[request_id]:
+                                                # Then this is our response for our subscription.
+                                                self.subscriptions[request_id] = True
+                                                self._vlog.debug('Subscription requested accepted.')
+                                                callback = self.callbacks[request_id]
+                                                await callback(self.CONNECT, resp)
+                                            elif request_id in self.callbacks.keys():
+                                                callback = self.callbacks[request_id]
+                                                body = resp.get('body', None)
+                                                if body is not None and body.get('op', None) == 'unsubscribe':
+                                                    self.subscriptions.pop(request_id)
+                                                    self.callbacks.pop(request_id)
+                                                await callback(self.MESSAGE, resp)
+                            elif resp['status'] >= 400:
+                                if not self.connected:
+                                    self._vlog.error('Connect call failed: %s :: %s:%s', resp['status'],
+                                                     resp['body'][0]['code'], resp['body'][0]['message'])
+                                    ve = VantiqException('io.vantiq.python.connect.failed',
+                                                         'Connect call failed: {0} :: {1}:{2}',
+                                                         [resp['status'], resp['body'][0]['code'],
+                                                          resp['body'][0]['message']])
+                                    self.connected_future.set_exception(ve)
+                                    raise ve
+                                else:
+                                    if request_id and request_id in self.callbacks.keys():
+                                        callback = self.callbacks[request_id]
+                                        await callback(self.ERROR, resp)
+                            elif resp['status'] == 100:
+                                if request_id and request_id in self.callbacks.keys():
+                                    self._vlog.debug('Message received via subscription.')
+                                    callback = self.callbacks[request_id]
+                                    await callback(self.MESSAGE, resp)
+                finally:
                     # Once we get here, any transient subscriptions will be gone, so we should reset our side as well
                     await self.unsubscribe_all()
-
-                # noinspection PyAsyncCall
-                asyncio.create_task(__handle_close())
-
-                if not self.connected:
-                    auth_msg = {
-                        'op': 'validate',
-                        'resourceName': 'system.credentials',
-                        'object': self.parent.get_access_token()
-                    }
-                    await websocket.send(json.dumps(auth_msg))
-
-                async for raw in websocket:
-
-                    resp = json.loads(raw)
-                    request_id = None
-                    if 'headers' in resp.keys():
-                        hdrs = resp['headers']
-                        if 'X-Request-Id' in hdrs.keys():
-                            request_id = hdrs['X-Request-Id']
-                    else:
-                        pass
-
-                    # Using request id, track back to request for which this is a response
-
-                    if 'status' in resp.keys():
-                        if resp['status'] == 200:
-                            if not self.is_authenticated:
-                                self.connection = websocket
-                                self.connected = True
-                                self.is_authenticated = True
-                                self.connected_future.set_result('OK')
-                                self._vlog.debug('Authentication completed.')
-                            else:
-                                if request_id:
-                                    if request_id in self.subscriptions.keys():
-                                        if not self.subscriptions[request_id]:
-                                            # Then this is our response for our subscription.
-                                            self.subscriptions[request_id] = True
-                                            self._vlog.debug('Subscription requested accepted.')
-                                            callback = self.callbacks[request_id]
-                                            await callback(self.CONNECT, resp)
-                                        elif request_id in self.callbacks.keys():
-                                            callback = self.callbacks[request_id]
-                                            body = resp.get('body', None)
-                                            if body is not None and body.get('op', None) == 'unsubscribe':
-                                                self.subscriptions.pop(request_id)
-                                                self.callbacks.pop(request_id)
-                                            await callback(self.MESSAGE, resp)
-                        elif resp['status'] >= 400:
-                            if not self.connected:
-                                self._vlog.error('Connect call failed: %s :: %s:%s', resp['status'],
-                                                 resp['body'][0]['code'], resp['body'][0]['message'])
-                                ve = VantiqException('io.vantiq.python.connect.failed',
-                                                     'Connect call failed: {0} :: {1}:{2}',
-                                                     [resp['status'], resp['body'][0]['code'],
-                                                      resp['body'][0]['message']])
-                                self.connected_future.set_exception(ve)
-                                raise ve
-                            else:
-                                if request_id and request_id in self.callbacks.keys():
-                                    callback = self.callbacks[request_id]
-                                    await callback(self.ERROR, resp)
-                        elif resp['status'] == 100:
-                            if request_id and request_id in self.callbacks.keys():
-                                self._vlog.debug('Message received via subscription.')
-                                callback = self.callbacks[request_id]
-                                await callback(self.MESSAGE, resp)
 
     async def subscribe(self, path: str, params: dict, callback: Callable[[str, dict], Awaitable[None]],
                         target_namespace: Union[str, None] = None) -> VantiqResponse:
