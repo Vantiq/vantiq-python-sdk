@@ -10,7 +10,9 @@ import traceback
 from typing import Union
 
 import aiofiles
+import aiohttp
 import pytest
+import ssl
 
 from vantiqsdk import Vantiq, VantiqException, VantiqResources, VantiqResponse
 
@@ -78,6 +80,7 @@ return {{
             vr = await client.delete(test_type_def['name'], None)
             assert vr.is_success
 
+            vr = await client.delete_one(VantiqResources.RULES, 'onTestPublish')
             rule = {'ruleText':
 f"""RULE onTestPublish
 
@@ -501,6 +504,12 @@ Event.ack()"""}
             assert isinstance(res, dict)
             assert len(res) == 0
 
+        vr = await client.select(VantiqResources.K8S_CLUSTERS)
+        assert isinstance(vr, VantiqResponse)
+        assert vr.is_success
+        rows = vr.body
+        start_cluster_count = len(rows)
+
         test_cluster_name = 'pythonTestCluster'
         vr = await client.insert(VantiqResources.K8S_CLUSTERS, {'name': test_cluster_name})
         assert isinstance(vr, VantiqResponse)
@@ -603,7 +612,9 @@ Event.ack()"""}
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         rows = vr.body
-        assert len(rows) == 1
+        print('K8sCluster select all result:', rows)
+
+        assert len(rows) == start_cluster_count
 
         vr = await client.select('system.junkola')
         assert isinstance(vr, VantiqResponse)
@@ -826,12 +837,12 @@ Event.ack()"""}
         assert v.get_access_token() is None
         assert v.get_username() is None
 
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     def test_dump_configuration_diagnosis(self):
         print('Config:', _server_url, _access_token, _username, _password)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_crud_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -846,7 +857,7 @@ Event.ack()"""}
             await self.check_crud_operations(client, False)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_crud_with_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url)  # Also test defaulting of API version
@@ -859,7 +870,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_other_ops_with_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -874,7 +885,7 @@ Event.ack()"""}
             await self.check_other_operations(client)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_other_ops_with_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url)  # Also test defaulting of API version
@@ -887,7 +898,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_documentesque_operation_as_ctm(self):
         self.check_test_conditions()
 
@@ -900,7 +911,7 @@ Event.ack()"""}
             await self.check_documentesque_operation(client)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_documentesque_operation_as_plain_client(self):
         self.check_test_conditions()
 
@@ -913,7 +924,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_subscriptions_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -924,7 +935,18 @@ Event.ack()"""}
             await self.check_subscription_ops(client, False)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_ctm_ignore_ssl(self):
+        self.check_test_conditions()
+        async with Vantiq(_server_url, '1', ssl=False) as client:
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
+            await self.check_subscription_ops(client, False)
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
     async def test_subscriptions_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')
@@ -934,6 +956,74 @@ Event.ack()"""}
             await client.authenticate(_username, _password)
         await self.check_subscription_ops(client, False)
         await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_ignore_ssl(self):
+        self.check_test_conditions()
+        client = Vantiq(_server_url, '1', ssl=False)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        await self.check_subscription_ops(client, False)
+        await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_ignore_ssl_no_version(self):
+        self.check_test_conditions()
+        client = Vantiq(_server_url, ssl=False)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        await self.check_subscription_ops(client, False)
+        await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_ssl_context(self):
+        self.check_test_conditions()
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        client = Vantiq(_server_url, '1', ssl=context)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        await self.check_subscription_ops(client, False)
+        await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_should_reject(self):
+        self.check_test_conditions()
+        if not _server_url.startswith('https://'):
+            pytest.skip('Server URL must be SSL for this test')
+        # Here, we create an "expected" fingerprint that shouldn't match much any real certificate.
+        # We expect this to fail. The test verifies that any attempt to do any work
+        # will fail because of the SSL context (with the fingerprint) that we sent in.  This positively
+        # verifies that our contexts are being passed all the way through/
+        context = aiohttp.Fingerprint(b'0' * 32)
+        exc = None
+        client = Vantiq(_server_url, '1', ssl=context)
+        try:
+            # Note: in the access token case, the check_subscription call will fail.  In the User/POW case,
+            # the authenticate() call will fail since that requires interaction with the server.
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
+            await self.check_subscription_ops(client, False)
+        except aiohttp.ServerFingerprintMismatch as sfm:
+            exc = sfm
+        except VantiqException as ve:
+            exc = ve
+        finally:
+            await client.close()
+        assert exc is not None
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(0)
@@ -959,7 +1049,7 @@ Event.ack()"""}
         await client.close()
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_namespace_users_as_ctm(self):
         self.check_test_conditions()
         async with Vantiq(_server_url, '1') as client:
@@ -970,7 +1060,7 @@ Event.ack()"""}
             await self.check_nsusers_ops(client)
 
     @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
+    @pytest.mark.timeout(10)
     async def test_namespace_users_as_plain_client(self):
         self.check_test_conditions()
         client = Vantiq(_server_url, '1')

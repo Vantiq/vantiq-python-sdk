@@ -134,6 +134,11 @@ Create a Vantiq client object.
 
 * _server_ : str -- URL String at which to find the Vantiq Server
 * _api_version_ : str (optional) -- Version of the API to use. Defaults to '1'
+* ... : After the _api_version_ parameter, you can provide a list of keyword arguments. These will be passed to the
+        `aiohttp.client.ClientSession` connection's `get()`, `post()`, `put()`, and `delete()` calls and,
+         in the case of a subscription, the `websockets.connect()` call. This allows a caller to modify the connection
+         as required.  A typical use case would be for disabling SSL certificate checking for test environments using
+         self-signed certificates.
 
 #### Returns
     Vantiq object with which to interact with the Vantiq system.
@@ -153,6 +158,14 @@ Or, in a client object:
 
 ```python
     client = Vantiq('https://dev.vantiq.com')
+    ...
+    await client.close()
+```
+
+Or, in a client object with SSL checking disabled:
+
+```python
+    client = Vantiq('https://dev.vantiq.com', 1, ssl=False)
     ...
     await client.close()
 ```
