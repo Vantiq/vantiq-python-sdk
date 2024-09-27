@@ -970,6 +970,18 @@ Event.ack()"""}
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_ignore_ssl_no_version(self):
+        self.check_test_conditions()
+        client = Vantiq(_server_url, ssl=False)
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        await self.check_subscription_ops(client, False)
+        await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
     async def test_subscriptions_as_plain_client_ssl_context(self):
         self.check_test_conditions()
         context = ssl.create_default_context()
