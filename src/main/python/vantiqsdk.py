@@ -45,9 +45,10 @@ _SYSTEM_PREFIX = 'system.'
 class _RestClient:
     """A generic HTTP Rest client."""
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, **connect_args) -> None:
         self._url = url
         self._con = None
+        self._connect_args = connect_args
 
     def __str__(self):
         return f'_RestClient for {self._url}'
@@ -61,6 +62,7 @@ class _RestClient:
 
     async def __aexit__(self, exc_type, exc, tb):
         await self._con.close()
+        self._connect_args = None
 
     async def connect(self):
         # set trust_env to True to enable env variable settings for network proxy support
@@ -68,6 +70,7 @@ class _RestClient:
 
     async def close(self):
         await self._con.close()
+        self._connect_args = None
 
     async def request(
         self,
@@ -90,20 +93,20 @@ class _RestClient:
 
         try:
             if method == 'GET':
-                return await self._con.get(url, params=query_param, headers=headers)
+                return await self._con.get(url, params=query_param, headers=headers, **self._connect_args)
             elif method == 'POST':
-                return await self._con.post(url, params=query_param, headers=headers, data=data)
+                return await self._con.post(url, params=query_param, headers=headers, data=data, **self._connect_args)
             elif method == 'DELETE':
-                return await self._con.delete(url, params=query_param, headers=headers)
+                return await self._con.delete(url, params=query_param, headers=headers, **self._connect_args)
             elif method == 'PUT':
-                return await self._con.put(url, params=query_param, headers=headers, data=data)
+                return await self._con.put(url, params=query_param, headers=headers, data=data, **self._connect_args)
         except Exception as e:
             raise VantiqException('io.vantiq.python.exception',
                                   'Unexpected exception performing {0} against server {1},',
                                   [method, self._url]) from e
 
     async def download(self, url: str, headers: Union[dict, None]) -> aiohttp.ClientResponse:
-        return await self._con.get(url, headers=headers)
+        return await self._con.get(url, headers=headers, **self._connect_args)
 
     async def upload(self, url: str, headers: Union[dict, None], content_type: str, filename: Union[str, None] = None,
                      doc_name: Union[str, None] = None,
@@ -118,7 +121,7 @@ class _RestClient:
             data.add_field(name=filename, value=inmem, content_type=content_type, filename=doc_name)
         else:
             data.add_field(name=filename, value=open(filename, 'rb'), content_type=content_type, filename=doc_name)
-        return await self._con.post(url, headers=headers, data=data)
+        return await self._con.post(url, headers=headers, data=data, **self._connect_args)
 
 
 class VantiqResources:
@@ -365,7 +368,7 @@ class Vantiq:
 
     """
 
-    def __init__(self, server: str, api_version: Union[str, None] = None):
+    def __init__(self, server: str, api_version: Union[str, None] = None, **connect_args):
         """Create a Vantiq client object.
 
         Parameters:
@@ -374,6 +377,9 @@ class Vantiq:
 
             api_version : str (optional)
                 Version of the API to use. Defaults to '1'
+
+            connect_args : the set of named connection arguments (optional)
+                These are passed through to the aiohttp and websockets connect calls
 
         Returns:
             Vantiq client object with which to interact with the Vantiq system.
@@ -393,6 +399,9 @@ class Vantiq:
                 ...
                 await client.close()
 
+            to pass special connection arguments
+            ::
+                client = Vantiq('https://dev.vantiq.com', '1', ssl=False)
 
         """
         self._vlog: Logger = logging.getLogger(self.__class__.__name__)
@@ -401,6 +410,7 @@ class Vantiq:
             self._server = server[:-len('/')]  # server.removesuffix('/')'
         else:
             self._server = server
+        self._connect_args = connect_args
         self._api_version = api_version if api_version else '1'
         self._is_authenticated = False
         self._username = None
@@ -410,7 +420,7 @@ class Vantiq:
         self._auth_header = None
         self._connection = None
         self._is_connected = False
-        self._connection = _RestClient(self._server)
+        self._connection = _RestClient(self._server, **connect_args)
         self._base_path = '/api/v' + self._api_version + '/'
         self._subscriber: Union[_VantiqSubscriber, None] = None
 
@@ -428,6 +438,7 @@ class Vantiq:
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.close()
+        self._connect_args = {}
 
     async def connect(self) -> None:
         """Make the connection to the Vantiq server
@@ -564,6 +575,7 @@ class Vantiq:
         self._auth_header = None
         self._target_namespace = None
         self._username = None
+        self._connect_args = {}
         if self._subscriber:
             await self._subscriber.close()
             self._subscriber = None
@@ -1354,8 +1366,9 @@ class _VantiqSubscriber:
     MESSAGE = 'message'
     ERROR = 'error'
 
-    def __init__(self, parent: Vantiq):
+    def __init__(self, parent: Vantiq, **connect_args):
         self.parent: Vantiq = parent
+        self._connect_args = connect_args
         self.connected = False
         self.connected_future: asyncio.Future = asyncio.get_running_loop().create_future()
         # noinspection PyTypeChecker
@@ -1391,7 +1404,8 @@ class _VantiqSubscriber:
                   "/wsock/websocket"
             async with websockets.connect(uri=self.url,
                                           ping_interval=20 if do_pings else None,
-                                          ping_timeout=20 if do_pings else None) as websocket:
+                                          ping_timeout=20 if do_pings else None,
+                                          **self._connect_args) as websocket:
                 try:
                     if not self.connected:
                         auth_msg = {
@@ -1434,7 +1448,7 @@ class _VantiqSubscriber:
                                             elif request_id in self.callbacks.keys():
                                                 callback = self.callbacks[request_id]
                                                 body = resp.get('body', None)
-                                                if body is not None and body.get('op', None) == 'unsubscribe':
+                                                if body is not None and isinstance(body, dict) and body.get('op', None) == 'unsubscribe':
                                                     self.subscriptions.pop(request_id)
                                                     self.callbacks.pop(request_id)
                                                 await callback(self.MESSAGE, resp)
@@ -1524,6 +1538,7 @@ class _VantiqSubscriber:
         # noinspection PyUnresolvedReferences
         await self.connection.close()
         self.connection = None
+        self._connect_args = {}
         self.is_authenticated = False
         if self.on_close_handler is not None:
             await self.on_close_handler()
