@@ -10,6 +10,7 @@ import traceback
 from typing import Union
 
 import aiofiles
+import aiohttp
 import pytest
 import ssl
 
@@ -986,6 +987,7 @@ Event.ack()"""}
         self.check_test_conditions()
         context = ssl.create_default_context()
         context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
         client = Vantiq(_server_url, '1', ssl=context)
         if _access_token:
             await client.set_access_token(_access_token)
@@ -993,6 +995,35 @@ Event.ack()"""}
             await client.authenticate(_username, _password)
         await self.check_subscription_ops(client, False)
         await client.close()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_subscriptions_as_plain_client_should_reject(self):
+        self.check_test_conditions()
+        if not _server_url.startswith('https://'):
+            pytest.skip('Server URL must be SSL for this test')
+        # Here, we create an "expected" fingerprint that shouldn't match much any real certificate.
+        # We expect this to fail. The test verifies that any attempt to do any work
+        # will fail because of the SSL context (with the fingerprint) that we sent in.  This positively
+        # verifies that our contexts are being passed all the way through/
+        context = aiohttp.Fingerprint(b'0' * 32)
+        exc = None
+        client = Vantiq(_server_url, '1', ssl=context)
+        try:
+            # Note: in the access token case, the check_subscription call will fail.  In the User/POW case,
+            # the authenticate() call will fail since that requires interaction with the server.
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
+            await self.check_subscription_ops(client, False)
+        except aiohttp.ServerFingerprintMismatch as sfm:
+            exc = sfm
+        except VantiqException as ve:
+            exc = ve
+        finally:
+            await client.close()
+        assert exc is not None
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(0)
