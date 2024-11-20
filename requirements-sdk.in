@@ -7,5 +7,4 @@
 # Also avoid putting any libraries that are only used by the build system (directly or
 # indirectly).  Those belong in "requirements-build.in".
 websockets
-aiohttp>=3.10.2
 requests>=2.32.3
