@@ -414,6 +414,7 @@ class Vantiq:
         self._api_version = api_version if api_version else '1'
         self._is_authenticated = False
         self._username = None
+        self._impersonate = False
         self._target_namespace = None
         self._access_token = None
         self._id_token = None
@@ -496,6 +497,7 @@ class Vantiq:
     def set_username(self, username: str) -> None:
         """Set the username to be used to access the Vantiq server"""
         self._username = username
+        self._impersonate = True
 
     def get_username(self) -> str:
         """Returns the username currently in use."""
@@ -620,6 +622,8 @@ class Vantiq:
         headers = {aiohttp.hdrs.AUTHORIZATION: self._auth_header}
         if self._target_namespace is not None:
             headers['X-Target-Namespace'] = self._target_namespace
+        if self._username is not None and self._impersonate:
+            headers['X-Impersonate-User'] = self._username
         return headers
 
     async def _perform_operation(self, operation: str, method: str, path: str,
