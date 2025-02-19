@@ -628,10 +628,11 @@ class Vantiq:
 
     async def _perform_operation(self, operation: str, method: str, path: str,
                                  query_params: Union[dict, None], is_streaming: bool,
-                                 instance: Union[dict, None] = None) -> VantiqResponse:
+                                 instance: Union[dict, None] = None, headers: Union[dict, None] = None) -> VantiqResponse:
         if self._is_authenticated:
             try:
-                headers = self._get_auth_headers()
+                headers = headers or {}
+                headers.update(self._get_auth_headers())
                 if instance is None:
                     # When no parameters are passed at all, we get 404's back.  So None as parameters == {}.
                     instance = {}
@@ -1116,7 +1117,7 @@ class Vantiq:
                                   'Unexpected error during {0} operation.',
                                   [operation]) from e
 
-    async def execute(self, procedure_id: str, params: dict) -> VantiqResponse:
+    async def execute(self, procedure_id: str, params: dict, headers: Union[dict, None] = None) -> VantiqResponse:
         """(Async) Execute a Vantiq procedure.
 
         Parameters:
@@ -1135,7 +1136,7 @@ class Vantiq:
             query_params = {}
             method = 'POST'
             path = self._build_path(_SYSTEM_PREFIX + 'procedures', procedure_id)
-            resp = await self._perform_operation(operation, method, path, query_params, False, params)
+            resp = await self._perform_operation(operation, method, path, query_params, False, params, headers)
             return resp
         except VantiqException:
             # If we've already handled or wrapped it, just pass it along
