@@ -14,6 +14,6 @@ zipp>=3.19.1
 # For build
 pip-tools
 build
-twine
+twine>=6.1.0
 pywin32-ctypes ;  platform_system == 'Windows'
 colorama ;  platform_system == 'Windows'
