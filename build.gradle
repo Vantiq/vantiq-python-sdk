@@ -37,6 +37,11 @@ ext {
     vantiqSdkDeps = depList
 }
 
+wrapper {
+    gradleVersion = '8.12.1'
+    distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
+}
+
 python {
     // python binary name (python or python3 by default)
     pythonBinary
@@ -81,8 +86,6 @@ python {
     }
     // copy virtualenv instead of symlink (when created)
     envCopy = false
-    pip 'pip:24.2'
-    pip 'pip-tools:7.4.1'
 }
 
 tasks.register('generateRequirements', PythonTask) {
@@ -91,6 +94,9 @@ tasks.register('generateRequirements', PythonTask) {
     module = 'piptools'
     command = 'compile requirements-build.in requirements-sdk.in --resolver=backtracking --unsafe-package py ' +
             '--unsafe-package pywin32 -o requirements.txt'
+    if (project.hasProperty('upgrade')) {
+        command += ' --upgrade'
+    }
 }
 
 task pytest(type: PythonTask) {
