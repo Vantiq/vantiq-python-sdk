@@ -143,7 +143,7 @@ class TestMockedConnection:
 
         orig_count = 0
 
-        mocked.post(f'/api/v1/resources/topics/{TEST_TOPIC}', status=200,
+        mocked.post(f'http://example.com/api/v1/resources/topics/{TEST_TOPIC}', status=200,
                     callback=self.callback)
         vr = await client.publish(VantiqResources.TOPICS, TEST_TOPIC, {'testValue': 'topic value'})
         assert isinstance(vr, VantiqResponse)
@@ -167,7 +167,7 @@ class TestMockedConnection:
         orig_count = self.callback_count
         self.message_checker = self.check_callback_type_insert
 
-        mocked.post(f'/api/v1/resources/custom/{TEST_TYPE}', status=200,
+        mocked.post(f'http://example.com/api/v1/resources/custom/{TEST_TYPE}', status=200,
                     callback=self.callback)
 
         vr = await client.insert(TEST_TYPE, {'id': 'test_insert'})
@@ -180,7 +180,7 @@ class TestMockedConnection:
             await asyncio.sleep(0.1)
         assert self.callbacks == ['connect', 'message']
 
-        mocked.post(f'/api/v1/resources/services/{SERVICE_EVENT}', status=200,
+        mocked.post(f'http://example.com/api/v1/resources/services/{SERVICE_EVENT}', status=200,
                     callback=self.callback)
         vr = await client.publish(VantiqResources.SERVICES, SERVICE_EVENT, {'testValue': 'event value'})
         assert isinstance(vr, VantiqResponse)
@@ -189,7 +189,7 @@ class TestMockedConnection:
     async def check_documentesque_operation(self, mocked, client: Vantiq, skip_pretest_cleanup: bool = False) -> None:
         # First, clean the environment
         all_docs = []
-        mocked.delete('/api/v1/resources/documents?count=true', status=200)
+        mocked.delete('http://example.com/api/v1/resources/documents?count=true', status=200)
         if not skip_pretest_cleanup:
             await client.delete(VantiqResources.DOCUMENTS, None)
 
@@ -200,7 +200,7 @@ class TestMockedConnection:
                     'content': '/docs/test_doc'}
         all_docs.append(doc_resp)
 
-        mocked.post('/api/v1/resources/documents', status=200, payload=doc_resp)
+        mocked.post('http://example.com/api/v1/resources/documents', status=200, payload=doc_resp)
         vr = await client.insert(VantiqResources.DOCUMENTS, doc)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -208,7 +208,7 @@ class TestMockedConnection:
         assert res
         assert isinstance(res, dict)
         assert res['name'] == 'test_doc'
-        mocked.get('/api/v1/resources/documents/test_doc', status=200, payload=doc_resp)
+        mocked.get('http://example.com/api/v1/resources/documents/test_doc', status=200, payload=doc_resp)
         vr = await client.select_one(VantiqResources.DOCUMENTS, 'test_doc')
         assert isinstance(vr, VantiqResponse)
         self.dump_result('Insert doc', vr)
@@ -222,7 +222,8 @@ class TestMockedConnection:
         assert doc['contentSize'] == len(file_content)
 
         # Test download capabilities.  check will handle both direct & via callback
-        await self.check_download(mocked, client, doc['content'], bytes(file_content, 'utf-8'))
+        await self.check_download(mocked, client, 'http://example.com/docs/test_doc' + doc['content'],
+                                  bytes(file_content, 'utf-8'))
 
         # Now, test ability to upload a document (as opposed to insert as above)
         # Check for creation as well as content existence & fetchability
@@ -231,7 +232,8 @@ class TestMockedConnection:
         doc_resp = {'name': file_name, 'contentSize': len(file_content), 'fileType': 'text/plain',
                     'content': '/docs/' + file_name}
         all_docs.append(doc_resp)
-        mocked.post('/api/v1/resources/documents', status=200, headers={'contentType': 'application/json'},
+        mocked.post('http://example.com/api/v1/resources/documents', status=200,
+                    headers={'contentType': 'application/json'},
                     payload=doc_resp)
 
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain',
@@ -242,7 +244,7 @@ class TestMockedConnection:
         assert res
         assert isinstance(res, dict)
         print('Document uploaded: ', res)
-        mocked.get('/api/v1/resources/documents/test_doc_upload', status=200, payload=doc_resp)
+        mocked.get('http://example.com/api/v1/resources/documents/test_doc_upload', status=200, payload=doc_resp)
         vr = await client.select_one(VantiqResources.DOCUMENTS, 'test_doc_upload')
         print('Document fetch post insert', vr)
         assert isinstance(vr, VantiqResponse)
@@ -250,7 +252,8 @@ class TestMockedConnection:
         doc = vr.body
         assert doc['contentSize'] == len(file_content)
 
-        await self.check_download(mocked, client, doc['content'], bytes(file_content, 'utf-8'))
+        await self.check_download(mocked, client, 'http://example.com/docs/test_doc' + doc['content'],
+                                  bytes(file_content, 'utf-8'))
 
         # Now, check the same thing with a file located at a root location
         # This is of interest since Vantiq doesn't permit document names that start
@@ -265,8 +268,8 @@ class TestMockedConnection:
         doc_resp = {'name': filename_sans_leading_slash, 'contentSize': len(file_content), 'fileType': 'text/plain',
                     'content': '/docs/' + filename_sans_leading_slash}
         all_docs.append(doc_resp)
-        mocked.post('/api/v1/resources/documents', status=200, headers={'contentType': 'application/json'},
-                    payload=doc_resp)
+        mocked.post('http://example.com/api/v1/resources/documents', status=200,
+                    headers={'contentType': 'application/json'}, payload=doc_resp)
 
         vr = await client.upload(VantiqResources.DOCUMENTS, 'text/plain', filename=filename,
                                  doc_name=filename_sans_leading_slash)
@@ -275,7 +278,7 @@ class TestMockedConnection:
         doc = vr.body
         assert isinstance(doc, dict)
         # Verify document set is as we expect
-        mocked.get('/api/v1/resources/documents', status=200, payload=all_docs)
+        mocked.get('http://example.com/api/v1/resources/documents', status=200, payload=all_docs)
 
         vr = await client.select(VantiqResources.DOCUMENTS)
         assert isinstance(vr, VantiqResponse)
@@ -290,13 +293,14 @@ class TestMockedConnection:
             assert len(docs) == 3
 
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        url = f'/api/v1/resources/documents?count=true&limit=1&{qp}'
+        url = f'http://example.com/api/v1/resources/documents?count=true&limit=1&{qp}'
         mocked.get(url, status=200, headers={'X-Total-Count': '3'})
         vr = await client.count(VantiqResources.DOCUMENTS, None)
         assert vr.count
         assert vr.count == len(docs)
 
-        mocked.get('/api/v1/resources/documents/' + filename_sans_leading_slash, status=200, payload=doc_resp)
+        mocked.get('http://example.com/api/v1/resources/documents/' + filename_sans_leading_slash, status=200,
+                   payload=doc_resp)
         vr = await client.select_one(VantiqResources.DOCUMENTS, filename_sans_leading_slash)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -305,7 +309,8 @@ class TestMockedConnection:
         assert doc['name'] == filename_sans_leading_slash
         assert doc['contentSize'] == len(file_content)
 
-        await self.check_download(mocked, client, doc['content'], bytes(file_content, 'utf-8'))
+        await self.check_download(mocked, client, 'http://example.com/docs/test_doc' + doc['content'],
+                                  bytes(file_content, 'utf-8'))
 
     def mock_query_part(self, props_part: str = None, where_part: str = None, sort_part: str = None,
                         limit_part: int = None, option_part: dict = None) -> str:
@@ -340,7 +345,7 @@ class TestMockedConnection:
         return ret_val
 
     async def check_crud_operations(self, mocked, client: Vantiq, skip_pretest_cleanup: bool = False):
-        mocked.get('/api/v1/resources/types', status=200, headers={'contentType': 'application/json'},
+        mocked.get('http://example.com/api/v1/resources/types', status=200, headers={'contentType': 'application/json'},
                    body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
                                     {'name': 'Ars_K8sCluster', 'resourceName': 'system.k8sclusters',
                                      'ars_namespace': 'system'}]))
@@ -357,7 +362,8 @@ class TestMockedConnection:
                 if row['resourceName'] == VantiqResources.K8S_CLUSTERS:
                     found_clusters = True
         assert found_clusters
-        mocked.get('/api/v1/resources/types/ArsNamespace', status=200, headers={'contentType': 'application/json'},
+        mocked.get('http://example.com/api/v1/resources/types/ArsNamespace', status=200,
+                   headers={'contentType': 'application/json'},
                    body=json.dumps({'name': 'Ars_Namespace', 'resourceName': 'namespaces', 'ars_namespace': 'system'}))
 
         vr = await client.select_one(VantiqResources.TYPES, 'ArsNamespace')
@@ -376,7 +382,7 @@ class TestMockedConnection:
                                      where_part='{"$or": [{"name": "ArsType"}, {"name": "ArsTensorFlowModel"}]}',
                                      sort_part='{"name": -1}', limit_part=1,
                                      option_part={"required": "true"})
-            mocked.get(url=f'/api/v1/resources/types?{query_part}', status=200,
+            mocked.get(url=f'http://example.com/api/v1/resources/types?{query_part}', status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps([{'name': 'ArsType', 'resourceName': 'types'}]))
             vr = await client.select(VantiqResources.TYPES, ["name", "resourceName"],
@@ -393,7 +399,8 @@ class TestMockedConnection:
             assert 'resourceName' in rows[0]
             assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
 
-            mocked.get('/api/v1/resources/types', status=200, headers={'contentType': 'application/json'},
+            mocked.get('http://example.com/api/v1/resources/types', status=200,
+                       headers={'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
                                         {'name': 'Ars_K8sCluster', 'resourceName': 'system.k8sclusters',
                                          'ars_namespace': 'system'}]))
@@ -405,7 +412,7 @@ class TestMockedConnection:
             assert isinstance(rows, list)
             assert len(rows) > 0
             qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-            mocked.get(f'/api/v1/resources/types?count=true&limit=1&{qp}', status=200,
+            mocked.get(f'http://example.com/api/v1/resources/types?count=true&limit=1&{qp}', status=200,
                        headers={'X-Total-Count': '2', 'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'},
                                         {'name': 'Ars_K8sCluster', 'resourceName': 'system.k8sclusters',
@@ -417,7 +424,7 @@ class TestMockedConnection:
             assert vr.count == len(rows)
 
             query_part = self.mock_query_part(where_part='{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
-            mocked.get(f'/api/v1/resources/types?count=true&limit=1&{query_part}', status=200,
+            mocked.get(f'http://example.com/api/v1/resources/types?count=true&limit=1&{query_part}', status=200,
                        headers={'X-Total-Count': '1', 'contentType': 'application/json'},
                        body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'}]))
 
@@ -433,7 +440,8 @@ class TestMockedConnection:
             assert ve is None
 
         test_cluster_name = 'pythonTestCluster'
-        mocked.post('/api/v1/resources/k8sclusters', status=200, headers={'contentType': 'application/json'},
+        mocked.post('http://example.com/api/v1/resources/k8sclusters', status=200,
+                    headers={'contentType': 'application/json'},
                     body=json.dumps({'_id': 1234, 'name': test_cluster_name,
                                      'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
         vr = await client.insert(VantiqResources.K8S_CLUSTERS, {'name': test_cluster_name})
@@ -449,7 +457,7 @@ class TestMockedConnection:
         assert res['ingressDefaultNode'] == f'vantiq-{test_cluster_name}-node'.lower()
         assert res['_id']
 
-        mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
+        mocked.get(f'http://example.com/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    headers={'contentType': 'application/json'},
                    body=json.dumps({'_id': '1234', 'name': test_cluster_name,
                                     'ingressDefaultNode': f'vantiq-{test_cluster_name}-node'.lower()}))
@@ -462,7 +470,7 @@ class TestMockedConnection:
 
         new_node_name = 'some-new-node'
         row['ingressDefaultNode'] = new_node_name
-        mocked.post(f'/api/v1/resources/k8sclusters?upsert=true', status=200,
+        mocked.post(f'http://example.com/api/v1/resources/k8sclusters?upsert=true', status=200,
                     body=json.dumps({'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
         vr = await client.upsert(VantiqResources.K8S_CLUSTERS, row)
@@ -478,7 +486,7 @@ class TestMockedConnection:
         assert '_id' not in res.keys()
 
         # Fetch to ensure still there & to refresh our record to avoid occ issues
-        mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
+        mocked.get(f'http://example.com/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    headers={'contentType': 'application/json'},
                    body=json.dumps({'_id': '1234', 'name': test_cluster_name,
                                     'ingressDefaultNode': f'{new_node_name}'.lower()}))
@@ -491,7 +499,7 @@ class TestMockedConnection:
         # Now, try the same thing via an update
         new_node_name = 'some-other-new-node'
         row['ingressDefaultNode'] = new_node_name
-        mocked.put(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
+        mocked.put(f'http://example.com/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    body=json.dumps({'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
         vr = await client.update(VantiqResources.K8S_CLUSTERS, test_cluster_name, row)
@@ -502,14 +510,14 @@ class TestMockedConnection:
         print('K8sCluster update result:', res)
 
         query_part = self.mock_query_part(where_part='{"name": "ratherUnlikelyName"}')
-        url = f'/api/v1/resources/k8sclusters?count=true&{query_part}'
+        url = f'http://example.com/api/v1/resources/k8sclusters?count=true&{query_part}'
         mocked.delete(url, status=404)
         # Run delete of something not there -- want to ensure that we're passing the values as required
         vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name': 'ratherUnlikelyName'})
         assert isinstance(vr, VantiqResponse)
         assert not vr.is_success
 
-        mocked.get(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
+        mocked.get(f'http://example.com/api/v1/resources/k8sclusters/{test_cluster_name}', status=200,
                    body=json.dumps({'_id': '1234', 'name': test_cluster_name,
                                     'ingressDefaultNode': f'{new_node_name}'.lower()}))
 
@@ -526,19 +534,19 @@ class TestMockedConnection:
         assert row['name'] == test_cluster_name
         assert row['ingressDefaultNode'] == new_node_name
         assert row['_id']
-        mocked.delete(f'/api/v1/resources/k8sclusters/{test_cluster_name}', status=200)
+        mocked.delete(f'http://example.com/api/v1/resources/k8sclusters/{test_cluster_name}', status=200)
         vr = await client.delete_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
         assert vr.count is None
 
         if not skip_pretest_cleanup:
-            mocked.delete(f'/api/v1/resources/k8sclusters/ratherUnlikelyName', status=404)
+            mocked.delete(f'http://example.com/api/v1/resources/k8sclusters/ratherUnlikelyName', status=404)
             vr = await client.delete_one(VantiqResources.K8S_CLUSTERS, 'ratherUnlikelyName')
             assert isinstance(vr, VantiqResponse)
             assert not vr.is_success
 
-        mocked.get(f'/api/v1/resources/k8sclusters/foo', status=404,
+        mocked.get(f'http://example.com/api/v1/resources/k8sclusters/foo', status=404,
                    body=json.dumps({'code': 'io.vantiq.resource.not.found',
                                     'message': "The requested instance ('{name=foo}') of the k8sclusters resource"
                                                " could not be found.",
@@ -553,7 +561,7 @@ class TestMockedConnection:
         assert ve.code == 'io.vantiq.resource.not.found'
         assert ve.params == ['k8sclusters', '{name=foo}']
 
-        mocked.get('/api/v1/resources/k8sclusters', status=200, body=json.dumps([]))
+        mocked.get('http://example.com/api/v1/resources/k8sclusters', status=200, body=json.dumps([]))
 
         vr = await client.select(VantiqResources.K8S_CLUSTERS)
         assert isinstance(vr, VantiqResponse)
@@ -561,13 +569,13 @@ class TestMockedConnection:
         rows = vr.body
         assert len(rows) == 0
 
-        mocked.post('/authenticate/refresh',
+        mocked.post('http://example.com/authenticate/refresh',
                     status=200,
                     headers={'contentType': 'application/json'},
                     body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
         await client.refresh()
 
-        mocked.get(f'/api/v1/resources/junkola', status=404,
+        mocked.get(f'http://example.com/api/v1/resources/junkola', status=404,
                    body=json.dumps([{'code': 'io.vantiq.type.system.resource.unknown',
                                      'message': 'The resource junkola is not recognized as a Vantiq system resource.  '
                                                 'Either correct resource name or adjust access URI/prefix.',
@@ -587,7 +595,7 @@ class TestMockedConnection:
 
     async def check_other_operations(self, mocked, client: Vantiq):
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
+        mocked.get(f'http://example.com/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
                    headers={'X-Total-Count': '0'})
 
         vr = await client.count(TEST_TYPE, None)
@@ -615,7 +623,7 @@ class TestMockedConnection:
         message = {'id': id_val, 'ts': dt,
                    'x': 3.14159, 'k': 8675309, 'o': embedded}
 
-        mocked.post(f'/api/v1/resources/topics/{TEST_TOPIC}', status=200)
+        mocked.post(f'http://example.com/api/v1/resources/topics/{TEST_TOPIC}', status=200)
         vr = await client.publish(VantiqResources.TOPICS, TEST_TOPIC, message)
         assert isinstance(vr, VantiqResponse)
         assert vr.is_success
@@ -623,7 +631,7 @@ class TestMockedConnection:
         await asyncio.sleep(0.500)  # let event hit...
 
         qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-        mocked.get(f'/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
+        mocked.get(f'http://example.com/api/v1/resources/custom/{TEST_TYPE}?count=true&limit=1&{qp}', status=200,
                    headers={'X-Total-Count': '1'})
         vr = await client.count(TEST_TYPE, None)
         assert isinstance(vr, VantiqResponse)
@@ -634,7 +642,7 @@ class TestMockedConnection:
 
         # Now verify that the correct object was inserted
         query_part = self.mock_query_part(where_part='{"id": "some_id"}')
-        url = f'/api/v1/resources/custom/{TEST_TYPE}?{query_part}'
+        url = f'http://example.com/api/v1/resources/custom/{TEST_TYPE}?{query_part}'
         mocked.get(url, status=200, body=json.dumps([message]))
         vr = client.select(TEST_TYPE, None, {'id': id_val})
         vr = await vr
@@ -648,7 +656,7 @@ class TestMockedConnection:
         # Now verify that the correct object was inserted
         query_part = self.mock_query_part(where_part='{"id": "some_id"}', limit_part=100)
 
-        url = f'/api/v1/resources/custom/{TEST_TYPE}?{query_part}'
+        url = f'http://example.com/api/v1/resources/custom/{TEST_TYPE}?{query_part}'
 
         # Now, verify that we can get the count when desired
         mocked.get(url, status=200, headers={'X-Total-Count': '1', 'contentType': 'application/json'},
@@ -666,7 +674,7 @@ class TestMockedConnection:
         proc_args = {'arg1': 'I am argument 1', 'arg2': 'I am argument 2'}
         ret_val = proc_args.copy()
         ret_val['namespace'] = 'bogusTestNamespace'
-        mocked.post(f'/api/v1/resources/procedures/{TEST_PROCEDURE}',
+        mocked.post(f'http://example.com/api/v1/resources/procedures/{TEST_PROCEDURE}',
                     status=200,
                     headers={'contentType': 'application/json'},
                     body=json.dumps(ret_val))
@@ -693,7 +701,7 @@ class TestMockedConnection:
         proc_args = {'arg1': 'a1', 'arg2': 'a2'}
         ret_val = proc_args.copy()
         ret_val['namespace'] = 'bogusTestNamespace'
-        mocked.post(f'/api/v1/resources/procedures/{TEST_PROCEDURE}',
+        mocked.post(f'http://example.com/api/v1/resources/procedures/{TEST_PROCEDURE}',
                     status=200,
                     headers={'contentType': 'application/json'},
                     body=json.dumps(ret_val))
@@ -712,7 +720,7 @@ class TestMockedConnection:
         ns = vr.body['namespace']
         assert isinstance(ns, str)
         expected_result = [{'username': _username, 'preferredUsername': _username}]
-        mocked.get(f'/api/v1/resources/namespaces/{ns}/authorizedUsers',
+        mocked.get(f'http://example.com/api/v1/resources/namespaces/{ns}/authorizedUsers',
                    status=200,
                    headers={'contentType': 'application/json'},
                    body=json.dumps(expected_result))
@@ -742,7 +750,7 @@ class TestMockedConnection:
         with aioresponses() as mocked:
             v = Vantiq(_server_url, '1')
             await v.connect()
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -753,7 +761,7 @@ class TestMockedConnection:
             assert v.get_username()
             assert v.get_username() == _username
 
-            mocked.post('/authenticate/refresh',
+            mocked.post('http://example.com/authenticate/refresh',
                         status=200,
                         headers={'contentType': 'application/json'},
                         body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -789,7 +797,7 @@ class TestMockedConnection:
             assert v.get_username()
             assert v.get_username() == _username
 
-            mocked.post('/authenticate/refresh',
+            mocked.post('http://example.com/authenticate/refresh',
                         status=200,
                         headers={'contentType': 'application/json'},
                         body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -811,7 +819,7 @@ class TestMockedConnection:
         with aioresponses() as mocked:
             async with Vantiq(_server_url, '1') as client:
                 if _username:
-                    mocked.get('/authenticate',
+                    mocked.get('http://example.com/authenticate',
                                status=200,
                                headers={'contentType': 'application/json'},
                                body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -830,7 +838,7 @@ class TestMockedConnection:
             if _access_token:
                 await client.set_access_token(_access_token)
             else:
-                mocked.get('/authenticate',
+                mocked.get('http://example.com/authenticate',
                            status=200,
                            headers={'contentType': 'application/json'},
                            body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -843,7 +851,7 @@ class TestMockedConnection:
     @pytest.mark.timeout(20)
     async def test_other_ops_with_ctm(self):
         with aioresponses() as mocked:
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -860,7 +868,7 @@ class TestMockedConnection:
     @pytest.mark.timeout(20)
     async def test_other_ops_with_plain_client(self):
         with aioresponses() as mocked:
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -887,7 +895,7 @@ class TestMockedConnection:
     async def test_documentesque_operation_as_plain_client(self):
         client = Vantiq(self.server_url)
         with aioresponses() as mocked:
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -901,7 +909,7 @@ class TestMockedConnection:
         # self.check_test_conditions()
         with aioresponses() as mocked:
             async with Vantiq(_server_url, '1') as client:
-                mocked.get('/authenticate',
+                mocked.get('http://example.com/authenticate',
                            status=200,
                            headers={'contentType': 'application/json'},
                            body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -913,7 +921,7 @@ class TestMockedConnection:
     async def test_subscriptions_as_plain_client(self):
         with aioresponses() as mocked:
             client = Vantiq(_server_url, '1')
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -926,7 +934,7 @@ class TestMockedConnection:
     async def test_namespace_users_as_ctm(self):
         async with Vantiq(_server_url, '1') as client:
             with aioresponses() as mocked:
-                mocked.get('/authenticate',
+                mocked.get('http://example.com/authenticate',
                            status=200,
                            headers={'contentType': 'application/json'},
                            body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
@@ -938,7 +946,7 @@ class TestMockedConnection:
     async def test_namespace_users_as_plain_client(self):
         client = Vantiq(_server_url, '1')
         with aioresponses() as mocked:
-            mocked.get('/authenticate',
+            mocked.get('http://example.com/authenticate',
                        status=200,
                        headers={'contentType': 'application/json'},
                        body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
