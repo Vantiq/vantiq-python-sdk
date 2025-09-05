@@ -119,8 +119,9 @@ tasks.withType(PythonTask) {
 }
 
 tasks.register('generateProjectCfg', Copy) {
+    doNotTrackState("Copying to root directory")
     outputs.upToDateWhen { false }
-    into project.projectDir
+    into "${project.projectDir}"
     from 'src/main/templates'
     include '**/pyproject.toml.tmpl'
     expand(vantiqSdkVersion: vantiqSdkVersion, vantiqSdkDeps: vantiqSdkDeps)
