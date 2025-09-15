@@ -501,7 +501,7 @@ Event.ack()"""}
             assert isinstance(vr, VantiqResponse)
             assert vr.is_success
             res = vr.body
-            assert isinstance(res, dict)
+            assert isinstance(res, bytes)
             assert len(res) == 0
 
         vr = await client.select(VantiqResources.K8S_CLUSTERS)
