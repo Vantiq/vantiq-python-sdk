@@ -1540,8 +1540,9 @@ class _VantiqSubscriber:
 
     async def close(self):
         self.connected = False
-        # noinspection PyUnresolvedReferences
-        await self.connection.close()
+        if self.connection is not None:
+            # noinspection PyUnresolvedReferences
+            await self.connection.close()
         self.connection = None
         self._connect_args = {}
         self.is_authenticated = False
