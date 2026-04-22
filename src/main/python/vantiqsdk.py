@@ -142,7 +142,6 @@ class VantiqResources:
     EVENT_GENERATORS = 'system.eventgenerators'
     GENAI_FLOWS = 'system.genaiflows'
     GROUPS = 'system.groups'
-    IMAGES = 'system.images'
     K8S_CLUSTERS = 'system.k8sclusters'
     K8S_INSTALLATIONS = 'system.k8sinstallations'
     LLMS = 'system.llms'
@@ -158,7 +157,6 @@ class VantiqResources:
     SEMANTIC_INDEXES = 'system.semanticindexes'
     SERVICES = 'system.services'
     SERVICE_CONNECTORS = 'system.serviceconnectors'
-    SITUATIONS = 'system.situations'
     SOURCES = 'system.sources'
     SOURCE_IMPLS = 'system.sourceimpls'
     STORAGE_MANAGERS = 'system.storagemanagers'
@@ -173,7 +171,6 @@ class VantiqResources:
     TRACKING_REGIONS = 'system.trackingRegions'
     TYPES = 'system.types'
     USERS = 'system.users'
-    VIDEOS = 'system.videos'
 
     @staticmethod
     def unqualified_name(qualified_name: str) -> Union[str, None]:

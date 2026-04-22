@@ -62,11 +62,7 @@ def _enumerate_system_resources():
 
 
 # Special cases that are not compatible with a plain select (e.g. because they require parameters or have special semantics)
-_SELECT_EXCLUDED = {
-    VantiqResources.IMAGES,
-    VantiqResources.VIDEOS,
-    VantiqResources.SITUATIONS,
-}
+_SELECT_EXCLUDED = {}
 
 
 def _resource_params(exclude=frozenset()):

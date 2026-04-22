@@ -39,7 +39,6 @@ The following constants are defined for these Vantiq system resources.
 * EVENT_GENERATORS
 * GENAI_FLOWS
 * GROUPS
-* IMAGES
 * K8S_CLUSTERS
 * K8S_INSTALLATIONS
 * LLMS
@@ -55,7 +54,6 @@ The following constants are defined for these Vantiq system resources.
 * SEMANTIC_INDEXES
 * SERVICES
 * SERVICE_CONNECTORS
-* SITUATIONS
 * SOURCES
 * SOURCE_IMPLS 
 * STORAGE_MANAGERS
@@ -70,7 +68,6 @@ The following constants are defined for these Vantiq system resources.
 * TRACKING_REGIONS
 * TYPES
 * USERS
-* VIDEOS
 
 
 ## VantiqError

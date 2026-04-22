@@ -53,7 +53,7 @@ def _enumerate_system_resources():
 
 # Resources that cannot be exercised by a plain `select` -- e.g. `IMAGES` is a
 # document-like resource that does not respond to a bare resource GET.
-_SELECT_EXCLUDED = {VantiqResources.IMAGES}
+_SELECT_EXCLUDED = {}
 
 
 def _resource_params(exclude=frozenset()):
