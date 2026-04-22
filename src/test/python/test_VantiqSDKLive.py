@@ -1070,3 +1070,87 @@ Event.ack()"""}
             await client.authenticate(_username, _password)
         await self.check_nsusers_ops(client)
         await client.close()
+
+    # ------------------------------------------------------------------
+    # Live tests for resource constants added in support of procedures,
+    # clients, groups, nodes, eventgenerators, designmodels, storagemanagers,
+    # serviceconnectors, genaiflows, discussions, and configurations.
+    # ------------------------------------------------------------------
+
+    # Pairs of (VantiqResources constant, expected bare resource name on server)
+    NEW_RESOURCE_EXPECTATIONS = [
+        (VantiqResources.PROCEDURES, 'procedures'),
+        (VantiqResources.CLIENTS, 'clients'),
+        (VantiqResources.GROUPS, 'groups'),
+        (VantiqResources.NODES, 'nodes'),
+        (VantiqResources.EVENT_GENERATORS, 'eventgenerators'),
+        (VantiqResources.DESIGN_MODELS, 'designmodels'),
+        (VantiqResources.STORAGE_MANAGERS, 'storagemanagers'),
+        (VantiqResources.SERVICE_CONNECTORS, 'serviceconnectors'),
+        (VantiqResources.GENAI_FLOWS, 'genaiflows'),
+        (VantiqResources.DISCUSSIONS, 'discussions'),
+        (VantiqResources.CONFIGURATIONS, 'configurations'),
+    ]
+
+    def test_new_resource_constants_defined(self):
+        """Structural test: verify each new VantiqResources constant exists and has
+        the expected fully-qualified `system.<name>` value.  This test does not
+        require a live server, so it is safe to run unconditionally."""
+        expected = {
+            'PROCEDURES': 'system.procedures',
+            'CLIENTS': 'system.clients',
+            'GROUPS': 'system.groups',
+            'NODES': 'system.nodes',
+            'EVENT_GENERATORS': 'system.eventgenerators',
+            'DESIGN_MODELS': 'system.designmodels',
+            'STORAGE_MANAGERS': 'system.storagemanagers',
+            'SERVICE_CONNECTORS': 'system.serviceconnectors',
+            'GENAI_FLOWS': 'system.genaiflows',
+            'DISCUSSIONS': 'system.discussions',
+            'CONFIGURATIONS': 'system.configurations',
+        }
+        for attr, expected_value in expected.items():
+            assert hasattr(VantiqResources, attr), f'VantiqResources.{attr} is missing'
+            assert getattr(VantiqResources, attr) == expected_value, \
+                f'VantiqResources.{attr} should be {expected_value!r}'
+
+    async def check_new_resource_selects(self, client: Vantiq):
+        """For each new resource constant, issue a `select` and verify the server
+        recognises the resource.  The body may be empty or populated depending on
+        the target namespace -- we only require the request to succeed."""
+        for resource_const, _bare_name in self.NEW_RESOURCE_EXPECTATIONS:
+            vr = await client.select(resource_const)
+            assert isinstance(vr, VantiqResponse), \
+                f'Unexpected response type for {resource_const}'
+            if not vr.is_success:
+                # Emit diagnostics for any failures before asserting so the CI log
+                # makes it obvious which resource had the problem.
+                for err in vr.errors or []:
+                    print(f'select({resource_const}) error: code={err.code}, '
+                          f'message={err.message}, params={err.params}')
+            assert vr.is_success, f'select({resource_const}) did not succeed'
+            assert isinstance(vr.body, list), \
+                f'select({resource_const}) body should be a list, got {type(vr.body)}'
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_select_new_resources_as_ctm(self):
+        self.check_test_conditions()
+        async with Vantiq(_server_url, '1') as client:
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
+            await self.check_new_resource_selects(client)
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_select_new_resources_as_plain_client(self):
+        self.check_test_conditions()
+        client = Vantiq(_server_url, '1')
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        await self.check_new_resource_selects(client)
+        await client.close()
