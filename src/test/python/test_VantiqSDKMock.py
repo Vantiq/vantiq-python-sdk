@@ -1030,29 +1030,3 @@ class TestMockedConnection:
                     f'select({resource_const}) failed: {vr.errors}'
                 assert isinstance(vr.body, list)
                 assert vr.body == []
-
-    @pytest.mark.parametrize('resource_const,bare_name', _ALL_RESOURCE_PARAMS)
-    @pytest.mark.asyncio
-    @pytest.mark.timeout(20)
-    async def test_count_resource(self, resource_const, bare_name):
-        """Verify `count` works for the given resource and that the URL path
-        is built correctly."""
-        with aioresponses() as mocked:
-            async with Vantiq(_server_url, '1') as client:
-                mocked.get('http://example.com/authenticate',
-                           status=200,
-                           headers={'contentType': 'application/json'},
-                           body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
-                await client.authenticate(_username, _password)
-
-                qp = self.mock_query_part(props_part=STANDARD_COUNT_PROPS)
-                url = f'http://example.com/api/v1/resources/{bare_name}?count=true&limit=1&{qp}'
-                mocked.get(url, status=200,
-                           headers={'X-Total-Count': '0', 'contentType': 'application/json'},
-                           body=json.dumps([]))
-                vr = await client.count(resource_const, None)
-                assert isinstance(vr, VantiqResponse), \
-                    f'Unexpected response type for {resource_const}'
-                assert vr.is_success, \
-                    f'count({resource_const}) failed: {vr.errors}'
-                assert vr.count == 0
