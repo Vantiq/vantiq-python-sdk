@@ -27,7 +27,6 @@ More details about these resources can be found in the
 
 The following constants are defined for these Vantiq system resources.
 
-* ANALYTICS_MODELS
 * AUDITS 
 * CATALOGS 
 * CLIENTS
@@ -62,7 +61,6 @@ The following constants are defined for these Vantiq system resources.
 * STORAGE_MANAGERS
 * SUBSCRIPTIONS
 * SYSTEM_MODELS
-* TENSORFLOW_MODELS
 * TESTS
 * TEST_REPORTS
 * TEST_SUITE_REPORTS

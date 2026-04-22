@@ -130,7 +130,6 @@ class VantiqResources:
     More details about these resources can be found in the Vantiq Resource Reference Guide.
     """
 
-    ANALYTICS_MODELS = 'system.analyticsmodels'
     AUDITS = 'system.audits'
     CATALOGS = 'system.catalogs'
     CLIENTS = 'system.clients'
@@ -165,7 +164,6 @@ class VantiqResources:
     STORAGE_MANAGERS = 'system.storagemanagers'
     SUBSCRIPTIONS = 'system.subscriptions'
     SYSTEM_MODELS = 'system.systemmodels'
-    TENSORFLOW_MODELS = 'system.tensorflowmodels'
     TESTS = 'system.tests'
     TEST_REPORTS = 'system.testreports'
     TEST_SUITE_REPORTS = 'system.testsuitereports'

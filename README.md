@@ -97,7 +97,7 @@ The project is set up as a `gradle` project.  To run the tests, use
 or
 
 ```commandline
-./gradlew.bat test
+gradlew.bat test
 ```
 
 in a windows environment.
