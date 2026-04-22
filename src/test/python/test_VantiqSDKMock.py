@@ -38,6 +38,43 @@ else:
     print('No logger.ini file found.')
 
 
+def _enumerate_system_resources():
+    """Reflect over VantiqResources and return a list of (qualified, bare) tuples
+    for every public string constant whose value starts with `system.`."""
+    pairs = []
+    for attr in sorted(dir(VantiqResources)):
+        if attr.startswith('_'):
+            continue
+        val = getattr(VantiqResources, attr)
+        if isinstance(val, str) and val.startswith('system.'):
+            pairs.append((val, val[len('system.'):]))
+    return pairs
+
+
+# Resources that cannot be exercised by a plain `select` -- e.g. `IMAGES` is a
+# document-like resource that does not respond to a bare resource GET.
+_SELECT_EXCLUDED = {}
+
+
+def _resource_params(exclude=frozenset()):
+    """Build the list of pytest.param entries used by @pytest.mark.parametrize
+    for the cross-resource tests.  Each parameter is identified by its
+    qualified name (e.g. `system.procedures`) so that each resource shows up
+    as its own test case in pytest output."""
+    params = []
+    for qualified, bare in _enumerate_system_resources():
+        marks = ()
+        if qualified in exclude:
+            marks = (pytest.mark.skip(
+                reason=f'{qualified} is not compatible with a plain select'),)
+        params.append(pytest.param(qualified, bare, id=qualified, marks=marks))
+    return params
+
+
+_ALL_RESOURCE_PARAMS = _resource_params()
+_SELECT_RESOURCE_PARAMS = _resource_params(exclude=_SELECT_EXCLUDED)
+
+
 class TestMockedConnection:
 
     @pytest.fixture(autouse=True)
@@ -953,3 +990,43 @@ class TestMockedConnection:
             await client.authenticate(_username, _password)
             await self.check_nsusers_ops(mocked, client)
         await client.close()
+
+    # ------------------------------------------------------------------
+    # Cross-resource tests: one pytest invocation per VantiqResources constant
+    # via @pytest.mark.parametrize.  Each resource shows up in the test output
+    # as its own test case (e.g. test_select_resource[system.procedures]).
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize('qualified,bare', _ALL_RESOURCE_PARAMS)
+    def test_resource_constant_has_system_prefix(self, qualified, bare):
+        """Structural per-resource check: the constant uses the `system.`
+        prefix and `unqualified_name` strips it correctly."""
+        assert qualified.startswith('system.')
+        assert bare == qualified[len('system.'):]
+        assert VantiqResources.unqualified_name(qualified) == bare
+
+    @pytest.mark.parametrize('resource_const,bare_name', _SELECT_RESOURCE_PARAMS)
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(20)
+    async def test_select_resource(self, resource_const, bare_name):
+        """Round-trip select: verify the SDK builds the correct URL path for
+        the given resource (i.e. the `system.` prefix is stripped)."""
+        with aioresponses() as mocked:
+            async with Vantiq(_server_url, '1') as client:
+                mocked.get('http://example.com/authenticate',
+                           status=200,
+                           headers={'contentType': 'application/json'},
+                           body=json.dumps({'accessToken': '1234abcd', 'idToken': 'longer_token'}))
+                await client.authenticate(_username, _password)
+
+                url = f'http://example.com/api/v1/resources/{bare_name}'
+                mocked.get(url, status=200,
+                           headers={'contentType': 'application/json'},
+                           body=json.dumps([]))
+                vr = await client.select(resource_const)
+                assert isinstance(vr, VantiqResponse), \
+                    f'Unexpected response type for {resource_const}'
+                assert vr.is_success, \
+                    f'select({resource_const}) failed: {vr.errors}'
+                assert isinstance(vr.body, list)
+                assert vr.body == []

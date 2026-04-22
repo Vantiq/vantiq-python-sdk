@@ -48,6 +48,42 @@ TEST_SERVICE_EVENT_CONTENTS = {'name': 'outbound event', 'val': {'breed': 'Engli
 TEST_SERVICE_EVENT_CONTENTS_VAIL = '{name: "outbound event", val: {breed: "English Springer"}}'
 
 
+def _enumerate_system_resources():
+    """Reflect over VantiqResources and return a list of (qualified, bare) tuples
+    for every public string constant whose value starts with `system.`."""
+    pairs = []
+    for attr in sorted(dir(VantiqResources)):
+        if attr.startswith('_'):
+            continue
+        val = getattr(VantiqResources, attr)
+        if isinstance(val, str) and val.startswith('system.'):
+            pairs.append((val, val[len('system.'):]))
+    return pairs
+
+
+# Special cases that are not compatible with a plain select (e.g. because they require parameters or have special semantics)
+_SELECT_EXCLUDED = {}
+
+
+def _resource_params(exclude=frozenset()):
+    """Build the list of pytest.param entries used by @pytest.mark.parametrize
+    for the cross-resource live tests.  Each parameter is identified by its
+    qualified name (e.g. `system.procedures`) so that each resource shows up
+    as its own test case in pytest output."""
+    params = []
+    for qualified, bare in _enumerate_system_resources():
+        marks = ()
+        if qualified in exclude:
+            marks = (pytest.mark.skip(
+                reason=f'{qualified} is not compatible with a plain select'),)
+        params.append(pytest.param(qualified, bare, id=qualified, marks=marks))
+    return params
+
+
+_ALL_RESOURCE_PARAMS = _resource_params()
+_SELECT_RESOURCE_PARAMS = _resource_params(exclude=_SELECT_EXCLUDED)
+
+
 class TestLiveConnection:
 
     async def setup_test_env(self, client: Vantiq):
@@ -1070,3 +1106,64 @@ Event.ack()"""}
             await client.authenticate(_username, _password)
         await self.check_nsusers_ops(client)
         await client.close()
+
+    # ------------------------------------------------------------------
+    # Cross-resource tests: one pytest invocation per VantiqResources constant
+    # via @pytest.mark.parametrize.  Each resource shows up in the test output
+    # as its own test case (e.g. test_select_resource_as_ctm[system.procedures]).
+    # ------------------------------------------------------------------
+
+    async def _select_and_assert(self, client: Vantiq, resource_const):
+        """Shared helper -- issue a select against the server and assert that
+        it succeeds.  Prints diagnostics before asserting to make CI failures
+        easy to attribute to a specific resource."""
+        vr = await client.select(resource_const)
+        assert isinstance(vr, VantiqResponse), \
+            f'Unexpected response type for {resource_const}'
+        if not vr.is_success:
+            for err in vr.errors or []:
+                print(f'select({resource_const}) error: code={err.code}, '
+                      f'message={err.message}, params={err.params}')
+        assert vr.is_success, f'select({resource_const}) did not succeed'
+        assert isinstance(vr.body, list), \
+            f'select({resource_const}) body should be a list, got {type(vr.body)}'
+
+    @pytest.mark.parametrize('qualified,bare', _ALL_RESOURCE_PARAMS)
+    def test_resource_constant_has_system_prefix(self, qualified, bare):
+        """Structural per-resource check: the constant uses the `system.`
+        prefix and `unqualified_name` strips it correctly.  Does not require
+        a live server."""
+        assert qualified.startswith('system.')
+        assert bare == qualified[len('system.'):]
+        assert VantiqResources.unqualified_name(qualified) == bare
+
+    @pytest.mark.parametrize('resource_const,bare_name', _SELECT_RESOURCE_PARAMS)
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_select_resource_as_ctm(self, resource_const, bare_name):
+        """Issue a live `select` against the given resource using a
+        context-managed client."""
+        self.check_test_conditions()
+        async with Vantiq(_server_url, '1') as client:
+            if _access_token:
+                await client.set_access_token(_access_token)
+            else:
+                await client.authenticate(_username, _password)
+            await self._select_and_assert(client, resource_const)
+
+    @pytest.mark.parametrize('resource_const,bare_name', _SELECT_RESOURCE_PARAMS)
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_select_resource_as_plain_client(self, resource_const, bare_name):
+        """Issue a live `select` against the given resource using a plain
+        (non-context-managed) client."""
+        self.check_test_conditions()
+        client = Vantiq(_server_url, '1')
+        if _access_token:
+            await client.set_access_token(_access_token)
+        else:
+            await client.authenticate(_username, _password)
+        try:
+            await self._select_and_assert(client, resource_const)
+        finally:
+            await client.close()
