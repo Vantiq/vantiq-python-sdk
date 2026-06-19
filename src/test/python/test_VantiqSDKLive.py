@@ -487,7 +487,7 @@ Event.ack()"""}
         assert 'resourceName' in row
         assert 'ars_namespace' in row
         assert 'name' in row
-        assert row['resourceName'] == VantiqResources.unqualified_name(VantiqResources.NAMESPACES)
+        assert row['resourceName'] == VantiqResources.NAMESPACES
 
         try:
             vr = await client.select(VantiqResources.TYPES, ["name", "resourceName"],
@@ -502,7 +502,7 @@ Event.ack()"""}
             assert rows
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
-            assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
+            assert rows[0]['resourceName'] == VantiqResources.TYPES
 
             vr = await client.select(VantiqResources.TYPES)
             assert isinstance(vr, VantiqResponse)
@@ -519,7 +519,7 @@ Event.ack()"""}
             assert vr.body == {}
 
             coroutine = client.count(VantiqResources.TYPES,
-                                     {'resourceName': VantiqResources.unqualified_name(VantiqResources.TYPES)})
+                                     {'resourceName': VantiqResources.TYPES})
             assert coroutine
             vr = await coroutine
             assert vr
