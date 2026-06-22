@@ -401,7 +401,7 @@ class TestMockedConnection:
         assert found_clusters
         mocked.get('http://example.com/api/v1/resources/types/ArsNamespace', status=200,
                    headers={'contentType': 'application/json'},
-                   body=json.dumps({'name': 'Ars_Namespace', 'resourceName': 'namespaces', 'ars_namespace': 'system'}))
+                   body=json.dumps({'name': 'Ars_Namespace', 'resourceName': 'system.namespaces', 'ars_namespace': 'system'}))
 
         vr = await client.select_one(VantiqResources.TYPES, 'ArsNamespace')
         assert isinstance(vr, VantiqResponse)
@@ -411,7 +411,7 @@ class TestMockedConnection:
         assert 'resourceName' in row
         assert 'ars_namespace' in row
         assert 'name' in row
-        assert row['resourceName'] == VantiqResources.unqualified_name(VantiqResources.NAMESPACES)
+        assert row['resourceName'] == VantiqResources.NAMESPACES
 
         try:
             query_part = \
@@ -421,7 +421,7 @@ class TestMockedConnection:
                                      option_part={"required": "true"})
             mocked.get(url=f'http://example.com/api/v1/resources/types?{query_part}', status=200,
                        headers={'contentType': 'application/json'},
-                       body=json.dumps([{'name': 'ArsType', 'resourceName': 'types'}]))
+                       body=json.dumps([{'name': 'ArsType', 'resourceName': 'system.types'}]))
             vr = await client.select(VantiqResources.TYPES, ["name", "resourceName"],
                                      {"$or": [{"name": "ArsType"}, {'name': 'ArsTensorFlowModel'}]},
                                      {"name": -1}, 1, {'required': 'true'})
@@ -434,7 +434,7 @@ class TestMockedConnection:
             assert rows
             assert len(rows) == 1
             assert 'resourceName' in rows[0]
-            assert rows[0]['resourceName'] == VantiqResources.unqualified_name(VantiqResources.TYPES)
+            assert rows[0]['resourceName'] == VantiqResources.TYPES
 
             mocked.get('http://example.com/api/v1/resources/types', status=200,
                        headers={'contentType': 'application/json'},
@@ -460,13 +460,13 @@ class TestMockedConnection:
             assert vr.count
             assert vr.count == len(rows)
 
-            query_part = self.mock_query_part(where_part='{"resourceName": "types"}', props_part=STANDARD_COUNT_PROPS)
+            query_part = self.mock_query_part(where_part='{"resourceName": "system.types"}', props_part=STANDARD_COUNT_PROPS)
             mocked.get(f'http://example.com/api/v1/resources/types?count=true&limit=1&{query_part}', status=200,
                        headers={'X-Total-Count': '1', 'contentType': 'application/json'},
-                       body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'types', 'ars_namespace': 'system'}]))
+                       body=json.dumps([{'name': 'Ars_Type', 'resourceName': 'system.types', 'ars_namespace': 'system'}]))
 
             coroutine = client.count(VantiqResources.TYPES,
-                                     {'resourceName': VantiqResources.unqualified_name(VantiqResources.TYPES)})
+                                     {'resourceName': VantiqResources.TYPES})
             assert coroutine
             vr = await coroutine
             assert vr
