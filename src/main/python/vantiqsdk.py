@@ -24,15 +24,18 @@ __all__ = ['Vantiq',
            'VantiqResources',
            'VantiqResponse',
            'VantiqError',
-           'VantiqException'
+           'VantiqException',
+           'execute_procedure',
+           'async_from_sync'
            ]
 
 import asyncio
 import base64
+import concurrent.futures
 import json
 import logging
 from logging import Logger
-from typing import Awaitable, Callable, List, Union, Dict
+from typing import Awaitable, Callable, List, Union, Dict, Any, Coroutine, TypeVar, ParamSpec
 
 import aiohttp
 import websockets
@@ -1554,3 +1557,51 @@ class _VantiqSubscriber:
         self.is_authenticated = False
         if self.on_close_handler is not None:
             await self.on_close_handler()
+
+
+async def execute_procedure(vantiq_client: Vantiq, procedure_name: str, params: dict) -> VantiqResponse:
+    """Execute a Vantiq procedure within the client's connection context, raising on failure.
+
+    Opens the client (``async with``), executes ``procedure_name`` with ``params``, and returns the
+    successful VantiqResponse. If the operation fails, raises a VantiqException carrying the server's
+    error message.
+
+    Parameters:
+        vantiq_client : Vantiq -- the client to use (entered as an async context manager)
+        procedure_name : str -- the (optionally namespace-qualified) procedure to run
+        params : dict -- named arguments for the procedure
+
+    Returns:
+        VantiqResponse for the successful execution.
+    """
+    async with vantiq_client:
+        response: VantiqResponse = await vantiq_client.execute(procedure_name, params)
+        if not response.is_success:
+            errors = response.errors or []
+            message = errors[0].message if errors else 'no error detail returned'
+            raise VantiqException('io.vantiq.sdk.procedure.execution.failed',
+                                  'Execution of procedure {0} failed: {1}', [procedure_name, message])
+        return response
+
+
+_P = ParamSpec('_P')
+_R = TypeVar('_R')
+
+
+def async_from_sync(func: Callable[_P, Coroutine[Any, Any, _R]]) -> Callable[_P, _R]:
+    """Decorator that allows an asynchronous function to be called from a synchronous context.
+
+    If no event loop is running in the current thread, the coroutine is run via ``asyncio.run``.
+    """
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop running in this thread — safe to create one.
+            return asyncio.run(func(*args, **kwargs))
+        # A loop is already running here; running it to completion on this loop would raise
+        # ("event loop is already running"). Run on a fresh loop in a worker thread instead.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, func(*args, **kwargs)).result()
+
+    return wrapper
