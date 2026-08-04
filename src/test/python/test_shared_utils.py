@@ -66,3 +66,16 @@ def test_async_from_sync_runs_coroutine_with_args_and_kwargs():
 
     # Exercises kwargs too — the earlier implementation splatted kwargs positionally.
     assert combine('x', 'y', sep='+') == 'x+y'
+
+
+def test_async_from_sync_works_from_within_a_running_loop():
+    @async_from_sync
+    async def double(x):
+        return x * 2
+
+    # Call the sync wrapper from inside a running event loop. The old implementation raised
+    # "event loop is already running" here; the thread-offload path handles it.
+    async def caller():
+        return double(21)
+
+    assert asyncio.run(caller()) == 42

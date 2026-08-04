@@ -31,6 +31,7 @@ __all__ = ['Vantiq',
 
 import asyncio
 import base64
+import concurrent.futures
 import json
 import logging
 from logging import Logger
@@ -1590,15 +1591,17 @@ _R = TypeVar('_R')
 def async_from_sync(func: Callable[_P, Coroutine[Any, Any, _R]]) -> Callable[_P, _R]:
     """Decorator that allows an asynchronous function to be called from a synchronous context.
 
-    If no event loop is running, the coroutine is run via ``asyncio.run``; otherwise it is driven to
-    completion on the running loop.
+    If no event loop is running in the current thread, the coroutine is run via ``asyncio.run``.
     """
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
+            # No loop running in this thread — safe to create one.
             return asyncio.run(func(*args, **kwargs))
-        else:
-            return loop.run_until_complete(func(*args, **kwargs))
+        # A loop is already running here; running it to completion on this loop would raise
+        # ("event loop is already running"). Run on a fresh loop in a worker thread instead.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, func(*args, **kwargs)).result()
 
     return wrapper
