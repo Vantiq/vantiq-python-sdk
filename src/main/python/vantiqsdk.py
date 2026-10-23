@@ -11,6 +11,8 @@ The SDK consists of the following
     VantiqException -- Exception raised from Vantiq when necessary
     VantiqResponse -- Structured response from Vantiq operations
     VantiqResources -- Names for Vantiq resources that may be used in for Vantiq operations
+    Currency, GeoJSON, ResourceReference -- Python forms of the Vantiq types that plain Python types
+        cannot express, with from_vantiq / to_vantiq to convert values either way
 
 The Vantiq SDK is built atop the asyncio-based aiohttp. Consequently, operations marked as async must be awaited.
 See https://docs.python.org/3/library/asyncio.html for more details.
@@ -26,16 +28,25 @@ __all__ = ['Vantiq',
            'VantiqError',
            'VantiqException',
            'execute_procedure',
-           'async_from_sync'
+           'async_from_sync',
+           'VantiqType',
+           'Currency',
+           'GeoJSON',
+           'ResourceReference',
+           'from_vantiq',
+           'to_vantiq',
+           'vantiq_json_default',
            ]
 
 import asyncio
 import base64
 import concurrent.futures
+import datetime as _dt
 import json
 import logging
+from decimal import Decimal
 from logging import Logger
-from typing import Awaitable, Callable, List, Union, Dict, Any, Coroutine, TypeVar, ParamSpec
+from typing import Annotated, Awaitable, Callable, List, Union, Dict, Any, Coroutine, TypeVar, ParamSpec
 
 import aiohttp
 import websockets
@@ -1605,3 +1616,243 @@ def async_from_sync(func: Callable[_P, Coroutine[Any, Any, _R]]) -> Callable[_P,
             return pool.submit(asyncio.run, func(*args, **kwargs)).result()
 
     return wrapper
+
+
+# ---------------------------------------------------------------------------------------------
+# Vantiq types
+#
+# Vantiq has a few types that no plain Python type expresses: Currency, Decimal, GeoJSON,
+# ResourceReference and DateTime. On the wire they take two forms: the external form the REST API
+# uses (a Currency is "USD:12.34", a Decimal "12.34", a ResourceReference "/types/Order", a DateTime
+# an ISO-8601 string) and the internal form a VAIL value serializes to (a Currency is
+# {"currency": "USD", "value": 1234, "scale": 2}, where value is the amount scaled to an integer).
+# from_vantiq accepts both and produces the Python form; to_vantiq produces the external form.
+# ---------------------------------------------------------------------------------------------
+
+class VantiqType:
+    """Names the Vantiq type a Python type hint stands for, as ``typing.Annotated`` metadata.
+
+    Python has no type of its own for a Vantiq GeoJSON or ResourceReference value, so the aliases
+    below tag the plain type (a dict, a str) with the Vantiq type it carries.
+    """
+    __slots__ = ('name',)
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f'VantiqType({self.name!r})'
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, VantiqType) and other.name == self.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+
+class Currency:
+    """A Vantiq Currency value: a Decimal amount with a currency code.
+
+    Arithmetic and comparison work as for a Decimal and keep the currency code. Combining two
+    values with different currency codes raises ValueError, as the Vantiq server does. ``amount``
+    may be a Decimal, int, or numeric string; a float is converted through its string form.
+
+    ``str(value)`` is the external form Vantiq accepts, for example ``"USD:12.34"``.
+    """
+    __slots__ = ('amount', 'currency')
+
+    def __init__(self, amount: Union[Decimal, int, str, float], currency: str) -> None:
+        if not isinstance(currency, str) or not currency:
+            raise ValueError('a Currency needs a currency code')
+        self.amount = amount if isinstance(amount, Decimal) else Decimal(str(amount))
+        self.currency = currency
+
+    @classmethod
+    def from_vantiq(cls, value: Union[str, Dict[str, Any], 'Currency']) -> 'Currency':
+        """Build a Currency from either wire form: ``"USD:12.34"`` or
+        ``{"currency": "USD", "value": 1234, "scale": 2}``."""
+        if isinstance(value, Currency):
+            return value
+        if isinstance(value, str):
+            code, sep, amount = value.partition(':')
+            if not sep or not code or not amount:
+                raise ValueError(f'a Currency string must be <currencyCode>:<amount>, not {value!r}')
+            return cls(Decimal(amount), code)
+        if isinstance(value, dict) and 'currency' in value and 'value' in value:
+            return cls(_scaled_decimal(value), value['currency'])
+        raise ValueError(f'cannot convert {value!r} to a Currency')
+
+    def to_vantiq(self) -> str:
+        """The external form, ``<currencyCode>:<amount>``."""
+        return f'{self.currency}:{self.amount:f}'
+
+    def _same(self, other: object) -> Decimal:
+        if isinstance(other, Currency):
+            if other.currency != self.currency:
+                raise ValueError(f'cannot combine {self.currency} with {other.currency}')
+            return other.amount
+        if isinstance(other, (Decimal, int)):
+            return Decimal(other)
+        return NotImplemented
+
+    def __add__(self, other: object) -> 'Currency':
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else Currency(self.amount + amount, self.currency)
+
+    __radd__ = __add__
+
+    def __sub__(self, other: object) -> 'Currency':
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else Currency(self.amount - amount, self.currency)
+
+    def __rsub__(self, other: object) -> 'Currency':
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else Currency(amount - self.amount, self.currency)
+
+    def __mul__(self, other: object) -> 'Currency':
+        if isinstance(other, (Decimal, int)):
+            return Currency(self.amount * Decimal(other), self.currency)
+        return NotImplemented
+
+    __rmul__ = __mul__
+
+    def __truediv__(self, other: object) -> 'Currency':
+        if isinstance(other, (Decimal, int)):
+            return Currency(self.amount / Decimal(other), self.currency)
+        return NotImplemented
+
+    def __neg__(self) -> 'Currency':
+        return Currency(-self.amount, self.currency)
+
+    def __abs__(self) -> 'Currency':
+        return Currency(abs(self.amount), self.currency)
+
+    def __round__(self, ndigits: int = 0) -> 'Currency':
+        return Currency(round(self.amount, ndigits), self.currency)
+
+    def __bool__(self) -> bool:
+        return bool(self.amount)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Currency) and other.currency == self.currency and other.amount == self.amount
+
+    def __hash__(self) -> int:
+        return hash((self.currency, self.amount))
+
+    def __lt__(self, other: object) -> bool:
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else self.amount < amount
+
+    def __le__(self, other: object) -> bool:
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else self.amount <= amount
+
+    def __gt__(self, other: object) -> bool:
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else self.amount > amount
+
+    def __ge__(self, other: object) -> bool:
+        amount = self._same(other)
+        return NotImplemented if amount is NotImplemented else self.amount >= amount
+
+    def __str__(self) -> str:
+        return self.to_vantiq()
+
+    def __repr__(self) -> str:
+        return f'Currency({self.amount!r}, {self.currency!r})'
+
+
+GeoJSON = Annotated[dict, VantiqType('GeoJSON')]
+"""A Vantiq GeoJSON value: a dict such as ``{"type": "Point", "coordinates": [lon, lat]}``."""
+
+ResourceReference = Annotated[str, VantiqType('ResourceReference')]
+"""A Vantiq ResourceReference in its external form, ``/<resource>/<resourceId>``."""
+
+
+def _scaled_decimal(value: Dict[str, Any]) -> Decimal:
+    # Internal form: an integer amount scaled by 10**scale.
+    return Decimal(value['value']).scaleb(-int(value.get('scale', 0)))
+
+
+def _parse_datetime(text: str) -> _dt.datetime:
+    # The server writes ISO-8601 instants with a trailing Z, which fromisoformat rejects before 3.11.
+    if text.endswith('Z'):
+        text = text[:-1] + '+00:00'
+    return _dt.datetime.fromisoformat(text)
+
+
+def from_vantiq(value: Any, vantiq_type: Union[str, None] = None) -> Any:
+    """Convert a value received from Vantiq to its Python form.
+
+    ``vantiq_type`` is the Vantiq type name the value was declared with (``Currency``, ``Decimal``,
+    ``ResourceReference``, ``DateTime``, ...). Both the external and internal wire forms are
+    accepted. Without ``vantiq_type``, only the internal map forms are recognized, since a plain
+    string could be any of several types; everything else is returned unchanged. Lists are
+    converted element by element.
+    """
+    if isinstance(value, list):
+        return [from_vantiq(v, vantiq_type) for v in value]
+    if vantiq_type == 'Currency' or (vantiq_type is None and _is_currency_map(value)):
+        return Currency.from_vantiq(value)
+    if vantiq_type == 'Decimal' or (vantiq_type is None and _is_decimal_map(value)):
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, dict):
+            return _scaled_decimal(value)
+        return Decimal(str(value))
+    if vantiq_type == 'ResourceReference' or (vantiq_type is None and _is_reference_map(value)):
+        if isinstance(value, dict):
+            return f"/{value['resource']}/{value['resourceId']}"
+        return value
+    if vantiq_type == 'DateTime' and isinstance(value, str):
+        return _parse_datetime(value)
+    return value
+
+
+def _is_currency_map(value: Any) -> bool:
+    return isinstance(value, dict) and set(value) == {'currency', 'value', 'scale'}
+
+
+def _is_decimal_map(value: Any) -> bool:
+    return isinstance(value, dict) and set(value) == {'value', 'scale'}
+
+
+def _is_reference_map(value: Any) -> bool:
+    return isinstance(value, dict) and set(value) == {'resource', 'resourceId'}
+
+
+def to_vantiq(value: Any) -> Any:
+    """Convert a Python value to the JSON form Vantiq accepts.
+
+    Currency becomes ``"USD:12.34"``, Decimal ``"12.34"``, datetime an ISO-8601 instant (a naive
+    datetime is taken as UTC), date and time their ISO forms, bytes base64 text. Dicts, lists and
+    tuples are converted recursively; anything else is returned unchanged.
+    """
+    if isinstance(value, (Currency, Decimal, _dt.datetime, _dt.date, _dt.time, bytes)):
+        return vantiq_json_default(value)
+    if isinstance(value, dict):
+        return {k: to_vantiq(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [to_vantiq(v) for v in value]
+    return value
+
+
+def vantiq_json_default(obj: Any) -> Any:
+    """``default`` function for ``json.dumps`` that encodes the Python forms of Vantiq types.
+
+    Raises TypeError for anything it does not know, as ``json.dumps`` expects.
+    """
+    if isinstance(obj, Currency):
+        return obj.to_vantiq()
+    if isinstance(obj, Decimal):
+        return f'{obj:f}'
+    if isinstance(obj, _dt.datetime):
+        if obj.tzinfo is None:
+            obj = obj.replace(tzinfo=_dt.timezone.utc)
+        text = obj.isoformat()
+        return text[:-6] + 'Z' if text.endswith('+00:00') else text
+    if isinstance(obj, (_dt.date, _dt.time)):
+        return obj.isoformat()
+    if isinstance(obj, bytes):
+        return base64.b64encode(obj).decode('ascii')
+    raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')
