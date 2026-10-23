@@ -596,3 +596,92 @@ connection between the client & server.
 #### Parameters:
 * _callback_ : Callable[[], Awaitable[None]]
         The callback to be called when the subscriber is closed. This call can be made at most once per subscriber.
+
+## Vantiq types
+
+Vantiq has types that no plain Python type expresses: `Currency`, `Decimal`, `GeoJSON`, `ResourceReference` and `DateTime`. The SDK provides Python forms for them and conversions in both directions. On the wire these values take two forms: the external form the REST API uses, and the internal form a VAIL value serializes to.
+
+| Vantiq type | Python form | External form | Internal form |
+|---|---|---|---|
+| `Currency` | `Currency` | `"USD:12.34"` | `{"currency": "USD", "value": 1234, "scale": 2}` |
+| `Decimal` | `decimal.Decimal` | `"12.34"` | `{"value": 1234, "scale": 2}` |
+| `GeoJSON` | `dict` | the GeoJSON object | the GeoJSON object |
+| `ResourceReference` | `str` | `"/types/Order"` | `{"resource": "types", "resourceId": "Order"}` |
+| `DateTime` | `datetime.datetime` | ISO-8601 instant | ISO-8601 instant |
+
+In the internal form of a `Currency` or `Decimal`, `value` is the amount scaled by `10**scale` to an integer.
+
+Use the Python forms in your own code and convert at the boundary: `from_vantiq` on values read from Vantiq, `to_vantiq` (or `vantiq_json_default`) on values sent to it.
+
+```python
+from vantiqsdk import Currency, from_vantiq, to_vantiq
+
+response = await client.select_one('Orders', order_id)
+total = from_vantiq(response.body['total'], 'Currency')      # Currency(Decimal('12.34'), 'USD')
+await client.update('Orders', order_id, to_vantiq({'total': total * 2}))
+```
+
+### VantiqType
+
+`VantiqType(name)` names the Vantiq type a Python type hint stands for, as `typing.Annotated` metadata. Python has no type of its own for a GeoJSON or ResourceReference value, so the aliases tag the plain type with the Vantiq type it carries:
+
+```python
+GeoJSON = Annotated[dict, VantiqType('GeoJSON')]
+ResourceReference = Annotated[str, VantiqType('ResourceReference')]
+```
+
+Code that inspects type hints (`typing.get_type_hints(..., include_extras=True)`) can read the tag back from the hint's `__metadata__`.
+
+### Currency
+
+`Currency(amount, currency)` is a Vantiq Currency value: a `Decimal` amount with a currency code. `amount` may be a `Decimal`, `int`, numeric `str`, or `float`.
+
+Arithmetic (`+`, `-`, `*`, `/`, unary `-`, `abs`, `round`) and comparison work as for a `Decimal` and keep the currency code. Adding, subtracting or comparing two values with different codes raises `ValueError`, as the Vantiq server does. Multiplication and division take a `Decimal` or `int`.
+
+#### Attributes
+
+* _amount_ : Decimal
+* _currency_ : str
+
+#### Currency.from\_vantiq(value)
+
+Builds a `Currency` from either wire form, `"USD:12.34"` or `{"currency": "USD", "value": 1234, "scale": 2}`. Raises `ValueError` for anything else.
+
+#### Currency.to\_vantiq()
+
+Returns the external form, `"<currencyCode>:<amount>"`, which is also `str(value)`.
+
+#### Example
+
+```python
+price = Currency.from_vantiq('USD:12.34')
+total = price * 2 + Currency('0.50', 'USD')   # Currency(Decimal('25.18'), 'USD')
+str(total)                                     # 'USD:25.18'
+```
+
+### from\_vantiq(value, vantiq\_type=None)
+
+Converts a value received from Vantiq to its Python form.
+
+#### Parameters
+
+* _value_ : Any -- the value as received, in either wire form
+* _vantiq\_type_ : str -- the Vantiq type name the value was declared with (`Currency`, `Decimal`, `ResourceReference`, `DateTime`). Optional.
+
+#### Returns
+
+The Python form: a `Currency`, `Decimal`, the `"/resource/id"` string of a reference, or a `datetime`. A list is converted element by element. Any other value, or a value whose type is not given and is not in an internal map form, is returned unchanged. Without _vantiq\_type_, strings are never converted, since `"USD:1"` could be a String.
+
+### to\_vantiq(value)
+
+Converts a Python value to the JSON form Vantiq accepts: `Currency` to `"USD:12.34"`, `Decimal` to `"12.34"`, `datetime` to an ISO-8601 instant (a naive datetime is taken as UTC), `date` and `time` to their ISO forms, and `bytes` to base64 text. Dicts, lists and tuples are converted recursively; anything else is returned unchanged.
+
+### vantiq\_json\_default(obj)
+
+A `default` function for `json.dumps` that encodes the same values as `to_vantiq`, for use when a payload is serialized directly:
+
+```python
+json.dumps({'total': Currency('1.00', 'USD')}, default=vantiq_json_default)   # '{"total": "USD:1.00"}'
+```
+
+Raises `TypeError` for an object it does not know, as `json.dumps` expects.
