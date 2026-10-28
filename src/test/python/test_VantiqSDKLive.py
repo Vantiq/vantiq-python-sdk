@@ -61,11 +61,6 @@ def _enumerate_system_resources():
     return pairs
 
 
-def _env_exists(value):
-    """Overridden env values show as empty string, and not None"""
-    return value is not None and value != ""
-
-
 # Special cases that are not compatible with a plain select (e.g. because they require parameters or have special semantics)
 _SELECT_EXCLUDED = {}
 
@@ -776,8 +771,8 @@ Event.ack()"""}
 
     @staticmethod
     def check_test_conditions():
-        has_credentials = (_env_exists(_access_token) or (_env_exists(_username) and _env_exists(_password)))
-        if not _env_exists(_server_url) or not has_credentials:
+        has_credentials = (bool(_access_token) or (bool(_username) and bool(_password)))
+        if not bool(_server_url) or not has_credentials:
             pytest.skip('Need access to Vantiq server.')
 
     async def check_nsusers_ops(self, client: Vantiq):
@@ -823,7 +818,7 @@ Event.ack()"""}
         global _username
         global _password
 
-        if not _env_exists(_username) or not _env_exists(_password):
+        if not bool(_username) or not bool(_password):
             pytest.skip('Missing username or password so test cannot be performed')
         self.check_test_conditions()
 
@@ -857,7 +852,7 @@ Event.ack()"""}
         global _server_url
         global _access_token
 
-        if not _env_exists(_access_token):
+        if not bool(_access_token):
             pytest.skip('Missing access token so test cannot be performed')
 
         self.check_test_conditions()
