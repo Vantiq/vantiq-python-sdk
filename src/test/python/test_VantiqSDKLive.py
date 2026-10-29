@@ -577,9 +577,9 @@ Event.ack()"""}
         assert isinstance(res, dict)
         assert 'ingressDefaultNode' in res
         assert res['ingressDefaultNode'] == new_node_name
-        # These will be missing since not updated
-        assert 'name' not in res.keys()
-        assert '_id' not in res.keys()
+        # With 1.45, we return the whole object in an update, so we expect all the keys to be there
+        assert 'name' in res.keys()
+        assert '_id' in res.keys()
 
         # Fetch to ensure still there & to refresh our record to avoid occ issues
         vr = await client.select_one(VantiqResources.K8S_CLUSTERS, test_cluster_name)
@@ -602,9 +602,9 @@ Event.ack()"""}
         assert isinstance(res, dict)
         assert 'ingressDefaultNode' in res
         assert res['ingressDefaultNode'] == new_node_name
-        # These will be missing since not updated
-        assert 'name' not in res.keys()
-        assert '_id' not in res.keys()
+        # With 1.45, we return the whole object in an update, so we expect all the keys to be there
+        assert 'name' in res.keys()
+        assert '_id' in res.keys()
 
         # Run a delete operation of something not there -- want to ensure that we're passing the values as required
         vr = await client.delete(VantiqResources.K8S_CLUSTERS, {'name': 'ratherUnlikelyName'})
@@ -771,7 +771,8 @@ Event.ack()"""}
 
     @staticmethod
     def check_test_conditions():
-        if _server_url is None or (_access_token is None and (_username is None and _password is None)):
+        has_credentials = (bool(_access_token) or (bool(_username) and bool(_password)))
+        if not bool(_server_url) or not has_credentials:
             pytest.skip('Need access to Vantiq server.')
 
     async def check_nsusers_ops(self, client: Vantiq):
@@ -817,7 +818,7 @@ Event.ack()"""}
         global _username
         global _password
 
-        if _username is None or _password is None:
+        if not bool(_username) or not bool(_password):
             pytest.skip('Missing username or password so test cannot be performed')
         self.check_test_conditions()
 
@@ -851,7 +852,7 @@ Event.ack()"""}
         global _server_url
         global _access_token
 
-        if _access_token is None:
+        if not bool(_access_token):
             pytest.skip('Missing access token so test cannot be performed')
 
         self.check_test_conditions()
